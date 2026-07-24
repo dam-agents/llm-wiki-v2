@@ -65,10 +65,12 @@ one static command (see [INSTALLATION.md](INSTALLATION.md)):
 curl -fsSL https://raw.githubusercontent.com/dam-agents/llm-wiki-v2/main/bootstrap.sh | bash
 ```
 
-It syncs this repo into the work directory and symlink-installs everything
-(so `git pull` updates the agent), making every session wiki-aware via
-[AGENT.md](AGENT.md). The interactive `/wiki-onboard` interview runs
-separately — the next session requests it automatically. Install once per
+It installs the agent definition into `~/.llm-wiki-agent` and symlinks
+everything into `~/.claude` (so `git pull` updates the agent), making every
+session wiki-aware via [AGENT.md](AGENT.md). Tooling lives in your home
+directory and the working directory holds only the wiki and its sources —
+they never collide. The interactive `/wiki-onboard` interview runs
+separately; the next session requests it automatically. Install once per
 machine; onboarding runs per wiki.
 
 ### More Options

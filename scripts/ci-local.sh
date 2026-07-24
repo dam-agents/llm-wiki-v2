@@ -251,7 +251,7 @@ EOF
         && [ -L "$FAKE_HOME/.claude/commands/wiki-onboard.md" ] \
         && [ -f "$FAKE_HOME/.llm-wiki-installed" ] \
         && grep -q "session-start.sh" "$FAKE_HOME/.claude/settings.json" \
-        && HOME="$FAKE_HOME" bash "$PROJECT_ROOT/llm-wiki/scripts/agent-install.sh" | grep -q "already installed"; then
+        && [[ "$(HOME="$FAKE_HOME" bash "$PROJECT_ROOT/llm-wiki/scripts/agent-install.sh")" == *"already installed"* ]]; then
         success "  agent-install.sh (install + idempotent re-run)"
     else
         error "  agent-install.sh failed"
@@ -268,19 +268,24 @@ EOF
         && [ -z "$(git -C "$PROJECT_ROOT" status --porcelain -- bootstrap.sh AGENT.md llm-wiki 2>/dev/null)" ]; then
         BARE="$(mktemp -d)/origin.git"
         BOOT_HOME="$(mktemp -d)"
-        BOOT_WORK="$(mktemp -d)"
         git init --bare -b main -q "$BARE"
         git -C "$PROJECT_ROOT" push -q "$BARE" HEAD:main
-        if (cd "$BOOT_WORK" && HOME="$BOOT_HOME" LLM_WIKI_REPO="$BARE" bash "$PROJECT_ROOT/bootstrap.sh" >/dev/null) \
-            && [ -L "$BOOT_HOME/.claude/skills/llm-wiki" ] \
+        # Installs into $HOME/.llm-wiki-agent and symlinks into ~/.claude;
+        # must never touch the working directory.
+        if HOME="$BOOT_HOME" LLM_WIKI_REPO="$BARE" bash "$PROJECT_ROOT/bootstrap.sh" >/dev/null \
+            && [ -f "$BOOT_HOME/.llm-wiki-agent/llm-wiki/SKILL.md" ] \
+            && [ "$(readlink "$BOOT_HOME/.claude/skills/llm-wiki")" = "$BOOT_HOME/.llm-wiki-agent/llm-wiki" ] \
+            && [ "$(readlink "$BOOT_HOME/.claude/CLAUDE.md")" = "$BOOT_HOME/.llm-wiki-agent/AGENT.md" ] \
             && [ -f "$BOOT_HOME/.llm-wiki-installed" ] \
-            && [ -f "$BOOT_WORK/llm-wiki/SKILL.md" ]; then
-            success "  bootstrap.sh (sync + install)"
+            && [[ "$(HOME="$BOOT_HOME" LLM_WIKI_REPO="$BARE" bash "$PROJECT_ROOT/bootstrap.sh")" == *"already installed"* ]] \
+            && HOME="$BOOT_HOME" bash "$PROJECT_ROOT/uninstall.sh" --force >/dev/null \
+            && [ ! -e "$BOOT_HOME/.llm-wiki-agent" ]; then
+            success "  bootstrap.sh (install + idempotent re-run + uninstall)"
         else
             error "  bootstrap.sh failed"
             INTEGRATION_OK=false
         fi
-        rm -rf "$BOOT_HOME" "$BOOT_WORK"
+        rm -rf "$BOOT_HOME" "$(dirname "$BARE")"
     else
         warn "  bootstrap.sh/AGENT.md/llm-wiki not committed cleanly at HEAD — skipping (commit first to enable this test)"
     fi
@@ -292,10 +297,14 @@ EOF
         echo ""
         error "Some integration tests failed"
     fi
+
+    # Propagate result to the parent shell via exit status — INTEGRATION_OK is
+    # set inside this subshell and cannot be read from outside it.
+    [ "$INTEGRATION_OK" = true ]
 )
 
 INTEGRATION_EXIT=$?
-if [ "$INTEGRATION_OK" = true ]; then
+if [ "$INTEGRATION_EXIT" -eq 0 ]; then
     PASS=$((PASS + 1))
 else
     FAIL=$((FAIL + 1))

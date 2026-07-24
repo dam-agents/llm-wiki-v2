@@ -50,7 +50,11 @@ directory layout). Sensible defaults are applied in Step 3.
 
 ## Step 2: Initialize the Wiki
 
+Create the intake directory and initialize the wiki, both in the working
+directory (the operational space — never in `~/.llm-wiki-agent`):
+
 ```bash
+mkdir -p ./.raw
 ~/.claude/skills/llm-wiki/scripts/init-wiki.sh ./wiki
 ```
 
@@ -115,8 +119,11 @@ try it out."
 - If sources are provided (or already sitting un-ingested in `./.raw/`):
   ingest them now, silently, per the ingest workflow — one summary line per
   source.
-- If the user picks the demo: ingest `.raw/greek-olympians.md` (and offer
-  `.raw/perseus-medusa.md` as a follow-up).
+- If the user picks the demo: copy the bundled demo sources out of the
+  agent definition into the workspace, then ingest them —
+  `cp ~/.llm-wiki-agent/.raw/greek-olympians.md ~/.llm-wiki-agent/.raw/perseus-medusa.md ./.raw/`
+  — ingest `.raw/greek-olympians.md` first, offer `.raw/perseus-medusa.md`
+  as a follow-up.
 - If they have nothing yet: fine — tell them the wiki fills up whenever they
   hand you documents.
 

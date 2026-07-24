@@ -34,7 +34,10 @@ Removes:
   • ~/.claude/skills/llm-wiki/     (skill directory or symlink)
   • ~/.claude/commands/wiki-*.md   (slash commands or symlinks)
   • ~/.claude/CLAUDE.md            (only if it is a symlink to AGENT.md)
+  • ~/.llm-wiki-agent/             (agent definition — tooling only, agent mode)
   • ~/.llm-wiki-installed          (agent install sentinel)
+
+Your wiki content (in the working directory) is never touched.
 
 Options:
   --force     Skip confirmation prompt
@@ -52,6 +55,7 @@ SKILL_DIR="$HOME/.claude/skills/llm-wiki"
 COMMANDS_DIR="$HOME/.claude/commands"
 MANUAL_LINK="$HOME/.claude/CLAUDE.md"
 AGENT_SENTINEL="$HOME/.llm-wiki-installed"
+AGENT_SRC="${LLM_WIKI_AGENT_HOME:-$HOME/.llm-wiki-agent}"
 
 # Agent-mode manual: only touch ~/.claude/CLAUDE.md if it is our symlink
 MANUAL_IS_OURS=false
@@ -73,7 +77,7 @@ if ls "$COMMANDS_DIR"/wiki-*.md >/dev/null 2>&1; then
     FOUND_ANYTHING=true
 fi
 
-if [ "$MANUAL_IS_OURS" = true ] || [ -f "$AGENT_SENTINEL" ]; then
+if [ "$MANUAL_IS_OURS" = true ] || [ -f "$AGENT_SENTINEL" ] || [ -d "$AGENT_SRC" ]; then
     FOUND_ANYTHING=true
 fi
 
@@ -107,6 +111,11 @@ fi
 if [ "$MANUAL_IS_OURS" = true ]; then
     echo "  Agent manual symlink:"
     echo "    ${YELLOW}$MANUAL_LINK${NC}"
+fi
+
+if [ -d "$AGENT_SRC" ]; then
+    echo "  Agent definition (tooling only):"
+    echo "    ${YELLOW}$AGENT_SRC${NC}"
 fi
 
 if [ -f "$AGENT_SENTINEL" ]; then
@@ -154,10 +163,16 @@ else
     warn "No wiki command files found (already removed?)"
 fi
 
-# 3. Remove agent-mode artifacts (manual symlink + install sentinel)
+# 3. Remove agent-mode artifacts (manual symlink + source + install sentinel)
 if [ "$MANUAL_IS_OURS" = true ]; then
     rm -f "$MANUAL_LINK"
     success "Removed agent manual symlink"
+    REMOVED_ITEMS=$((REMOVED_ITEMS + 1))
+fi
+
+if [ -d "$AGENT_SRC" ]; then
+    rm -rf "$AGENT_SRC"
+    success "Removed agent definition ($AGENT_SRC)"
     REMOVED_ITEMS=$((REMOVED_ITEMS + 1))
 fi
 

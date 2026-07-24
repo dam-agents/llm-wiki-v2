@@ -13,15 +13,19 @@ system instructions (see `INSTALLATION.md`).
 
 | Path | Purpose |
 |------|---------|
-| Work directory (canonically `/home/agent/work`) | This repo — the agent definition. Sessions start here. |
-| `./wiki/` | The wiki content — created during onboarding, gitignored by this repo |
+| `$HOME/.llm-wiki-agent/` | The agent-definition repo — tooling, skill, docs. Updated with `git pull`. |
+| Work directory (canonically `/home/agent/work`) | Where sessions start; holds **only** operational data |
+| `./wiki/` | The wiki content — created during onboarding (its own git repo) |
 | `./.raw/` | Source-document intake directory |
-| `$HOME/.claude/skills/llm-wiki/` | Symlink to `llm-wiki/` in this repo |
+| `$HOME/.claude/skills/llm-wiki/` | Symlink to `~/.llm-wiki-agent/llm-wiki/` |
+| `$HOME/.claude/CLAUDE.md` | Symlink to `~/.llm-wiki-agent/AGENT.md` (this file) |
 | `$HOME/.llm-wiki-installed` | Install sentinel (per-machine, written by `agent-install.sh`) |
 | `./wiki/.llm-wiki/onboarded` | Onboarding sentinel (per-wiki, written by the onboard workflow) |
 
-All wiki paths below are relative to the work directory. Do not hardcode
-absolute paths — resolve from the current working directory and `$HOME`.
+The tooling lives in `$HOME`; the working directory holds only operational
+data, so nothing done in the workspace can damage the agent itself. Wiki
+paths are relative to the working directory — resolve from the current
+working directory and `$HOME`; never hardcode absolute paths.
 
 ## Rule 0 — Onboarding Gate
 

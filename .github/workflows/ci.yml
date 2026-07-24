@@ -114,16 +114,22 @@ jobs:
           git init --bare -b main "$BARE"
           git -C "$GITHUB_WORKSPACE" push -q "$BARE" HEAD:main
           BOOT_HOME="$(mktemp -d)"
-          BOOT_WORK="$(mktemp -d)"
-          cd "$BOOT_WORK"
+          # Installs into $HOME/.llm-wiki-agent; must NOT touch the CWD
           HOME="$BOOT_HOME" LLM_WIKI_REPO="$BARE" bash "$GITHUB_WORKSPACE/bootstrap.sh"
-          test -L "$BOOT_HOME/.claude/skills/llm-wiki"
+          test -f "$BOOT_HOME/.llm-wiki-agent/llm-wiki/SKILL.md"
+          test "$(readlink "$BOOT_HOME/.claude/skills/llm-wiki")" = "$BOOT_HOME/.llm-wiki-agent/llm-wiki"
+          test "$(readlink "$BOOT_HOME/.claude/CLAUDE.md")" = "$BOOT_HOME/.llm-wiki-agent/AGENT.md"
+          test -f "$BOOT_HOME/.claude/commands/wiki-onboard.md"
           test -f "$BOOT_HOME/.llm-wiki-installed"
-          test -f "$BOOT_WORK/llm-wiki/SKILL.md"
+          grep -q "session-start.sh" "$BOOT_HOME/.claude/settings.json"
           # Re-run is a no-op
           HOME="$BOOT_HOME" LLM_WIKI_REPO="$BARE" bash "$GITHUB_WORKSPACE/bootstrap.sh" | grep -q "already installed"
+          # Uninstall removes the agent definition (isolated HOME, forced)
+          HOME="$BOOT_HOME" bash "$GITHUB_WORKSPACE/uninstall.sh" --force
+          test ! -e "$BOOT_HOME/.llm-wiki-agent"
+          test ! -e "$BOOT_HOME/.llm-wiki-installed"
           cd "$TMPDIR"
-          rm -rf "$BOOT_HOME" "$BOOT_WORK"
+          rm -rf "$BOOT_HOME" "$(dirname "$BARE")"
 
           cd /tmp
           rm -rf "$TMPDIR"
