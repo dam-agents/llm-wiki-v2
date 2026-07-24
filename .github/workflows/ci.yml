@@ -28,6 +28,8 @@ jobs:
         with:
           globs: |
             README.md
+            INSTALLATION.md
+            AGENT.md
             CONTRIBUTING.md
             CODE_OF_CONDUCT.md
             SECURITY.md
@@ -94,6 +96,18 @@ jobs:
 
           echo "=== Testing install.sh --help ==="
           bash "$GITHUB_WORKSPACE/llm-wiki/install.sh" --help
+
+          echo "=== Testing agent-install.sh (isolated HOME) ==="
+          FAKE_HOME="$(mktemp -d)"
+          HOME="$FAKE_HOME" bash "$GITHUB_WORKSPACE/llm-wiki/scripts/agent-install.sh"
+          test -L "$FAKE_HOME/.claude/skills/llm-wiki"
+          test -L "$FAKE_HOME/.claude/CLAUDE.md"
+          test -L "$FAKE_HOME/.claude/commands/wiki-onboard.md"
+          test -f "$FAKE_HOME/.llm-wiki-installed"
+          grep -q "session-start.sh" "$FAKE_HOME/.claude/settings.json"
+          # Idempotent re-run must be a no-op
+          HOME="$FAKE_HOME" bash "$GITHUB_WORKSPACE/llm-wiki/scripts/agent-install.sh" | grep -q "already installed"
+          rm -rf "$FAKE_HOME"
 
           cd /tmp
           rm -rf "$TMPDIR"

@@ -88,6 +88,8 @@ if command -v markdownlint-cli2 &>/dev/null; then
     # Same globs as .github/workflows/ci.yml markdownlint job
     if markdownlint-cli2 \
         README.md \
+        INSTALLATION.md \
+        AGENT.md \
         CONTRIBUTING.md \
         CODE_OF_CONDUCT.md \
         SECURITY.md \
@@ -237,6 +239,24 @@ EOF
         error "  uninstall.sh --help failed"
         INTEGRATION_OK=false
     fi
+
+    # Test agent-install.sh against an isolated HOME
+    echo ""
+    echo "--- Testing agent-install.sh (isolated HOME) ---"
+    FAKE_HOME="$(mktemp -d)"
+    if HOME="$FAKE_HOME" bash "$PROJECT_ROOT/llm-wiki/scripts/agent-install.sh" \
+        && [ -L "$FAKE_HOME/.claude/skills/llm-wiki" ] \
+        && [ -L "$FAKE_HOME/.claude/CLAUDE.md" ] \
+        && [ -L "$FAKE_HOME/.claude/commands/wiki-onboard.md" ] \
+        && [ -f "$FAKE_HOME/.llm-wiki-installed" ] \
+        && grep -q "session-start.sh" "$FAKE_HOME/.claude/settings.json" \
+        && HOME="$FAKE_HOME" bash "$PROJECT_ROOT/llm-wiki/scripts/agent-install.sh" | grep -q "already installed"; then
+        success "  agent-install.sh (install + idempotent re-run)"
+    else
+        error "  agent-install.sh failed"
+        INTEGRATION_OK=false
+    fi
+    rm -rf "$FAKE_HOME"
 
     if [ "$INTEGRATION_OK" = true ]; then
         echo ""

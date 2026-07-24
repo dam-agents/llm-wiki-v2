@@ -31,8 +31,10 @@ Usage: uninstall.sh [--force]
 Uninstall the LLM Wiki skill from Claude Code.
 
 Removes:
-  • ~/.claude/skills/llm-wiki/     (skill directory)
-  • ~/.claude/commands/wiki-*.md   (slash commands)
+  • ~/.claude/skills/llm-wiki/     (skill directory or symlink)
+  • ~/.claude/commands/wiki-*.md   (slash commands or symlinks)
+  • ~/.claude/CLAUDE.md            (only if it is a symlink to AGENT.md)
+  • ~/.llm-wiki-installed          (agent install sentinel)
 
 Options:
   --force     Skip confirmation prompt
@@ -48,16 +50,30 @@ done
 
 SKILL_DIR="$HOME/.claude/skills/llm-wiki"
 COMMANDS_DIR="$HOME/.claude/commands"
+MANUAL_LINK="$HOME/.claude/CLAUDE.md"
+AGENT_SENTINEL="$HOME/.llm-wiki-installed"
+
+# Agent-mode manual: only touch ~/.claude/CLAUDE.md if it is our symlink
+MANUAL_IS_OURS=false
+if [ -L "$MANUAL_LINK" ]; then
+    case "$(readlink "$MANUAL_LINK")" in
+        */AGENT.md) MANUAL_IS_OURS=true ;;
+    esac
+fi
 
 # ── Pre-flight check ────────────────────────────────────────────────────────
 
 FOUND_ANYTHING=false
 
-if [ -d "$SKILL_DIR" ]; then
+if [ -d "$SKILL_DIR" ] || [ -L "$SKILL_DIR" ]; then
     FOUND_ANYTHING=true
 fi
 
 if ls "$COMMANDS_DIR"/wiki-*.md >/dev/null 2>&1; then
+    FOUND_ANYTHING=true
+fi
+
+if [ "$MANUAL_IS_OURS" = true ] || [ -f "$AGENT_SENTINEL" ]; then
     FOUND_ANYTHING=true
 fi
 
@@ -88,6 +104,16 @@ if ls "$COMMANDS_DIR"/wiki-*.md >/dev/null 2>&1; then
     done
 fi
 
+if [ "$MANUAL_IS_OURS" = true ]; then
+    echo "  Agent manual symlink:"
+    echo "    ${YELLOW}$MANUAL_LINK${NC}"
+fi
+
+if [ -f "$AGENT_SENTINEL" ]; then
+    echo "  Agent install sentinel:"
+    echo "    ${YELLOW}$AGENT_SENTINEL${NC}"
+fi
+
 echo ""
 
 # ── Confirmation ────────────────────────────────────────────────────────────
@@ -106,8 +132,8 @@ echo ""
 
 REMOVED_ITEMS=0
 
-# 1. Remove skill directory
-if [ -d "$SKILL_DIR" ]; then
+# 1. Remove skill directory (or agent-mode symlink — target repo untouched)
+if [ -d "$SKILL_DIR" ] || [ -L "$SKILL_DIR" ]; then
     rm -rf "$SKILL_DIR"
     success "Removed skill directory"
     REMOVED_ITEMS=$((REMOVED_ITEMS + 1))
@@ -126,6 +152,23 @@ if ls "$COMMANDS_DIR"/wiki-*.md >/dev/null 2>&1; then
     done
 else
     warn "No wiki command files found (already removed?)"
+fi
+
+# 3. Remove agent-mode artifacts (manual symlink + install sentinel)
+if [ "$MANUAL_IS_OURS" = true ]; then
+    rm -f "$MANUAL_LINK"
+    success "Removed agent manual symlink"
+    REMOVED_ITEMS=$((REMOVED_ITEMS + 1))
+fi
+
+if [ -f "$AGENT_SENTINEL" ]; then
+    rm -f "$AGENT_SENTINEL"
+    success "Removed agent install sentinel"
+    REMOVED_ITEMS=$((REMOVED_ITEMS + 1))
+fi
+
+if [ -f "$HOME/.claude/settings.json" ] && grep -q "skills/llm-wiki/hooks" "$HOME/.claude/settings.json" 2>/dev/null; then
+    warn "$HOME/.claude/settings.json still references llm-wiki hooks — remove the SessionStart/SessionEnd entries manually."
 fi
 
 # ── Summary ─────────────────────────────────────────────────────────────────

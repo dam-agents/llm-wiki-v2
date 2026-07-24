@@ -47,13 +47,14 @@ Use `Skill("llm-wiki")` when you need deep wiki operations (ingestion, full lint
 
 ## Slash Commands
 
-The skill provides 7 real slash commands. Each is a `.md` file in `commands/` that gets installed to `~/.claude/commands/` by `install.sh`. Claude Code auto-discovers them at startup.
+The skill provides 8 real slash commands. Each is a `.md` file in `commands/` that gets installed to `~/.claude/commands/` by `install.sh` (or symlinked by `scripts/agent-install.sh` in agent mode). Claude Code auto-discovers them at startup.
 
 When you are invoked (via `Skill("llm-wiki")`), determine which workflow to follow based on the command the user ran:
 
 | Command | Command file | What it does | Workflow file |
 |---------|-------------|-------------|---------------|
 | `/wiki` | _(skill auto-registration)_ | Dashboard — stats, recent activity, pending reviews | (inline below) |
+| `/wiki-onboard` | `commands/wiki-onboard.md` | One-time setup interview — create and configure the wiki | `workflows/onboard.md` |
 | `/wiki-ingest <file\|URL>` | `commands/wiki-ingest.md` | Ingest a source into the wiki (two-phase) | `workflows/ingest.md` |
 | `/wiki-query <question>` | `commands/wiki-query.md` | Answer a question from wiki knowledge | `workflows/query.md` |
 | `/wiki-lint [--quick\|--full]` | `commands/wiki-lint.md` | Health check — structural or semantic | `workflows/lint.md` |
@@ -132,6 +133,20 @@ When the user invokes `/wiki`, do the following:
 ## Active Topics / 活跃主题
 ... (from hot-cache if available)
 ```
+
+## Agent Mode
+
+When this machine is a dedicated LLM Wiki agent (sentinel
+`$HOME/.llm-wiki-installed` exists, created by `scripts/agent-install.sh` —
+see `INSTALLATION.md` in the repo root):
+
+- The global operating manual is `AGENT.md`, symlinked to
+  `~/.claude/CLAUDE.md`. Its rules (wiki-first answering, silent ingestion,
+  contextual hints) apply to every session.
+- If `./wiki/.llm-wiki/onboarded` is missing, run `/wiki-onboard`
+  (`workflows/onboard.md`) before anything else.
+- Ingestion never pauses for review (`require_review: false`) and reports a
+  single summary line.
 
 ## Design Principles (For Your Reference)
 

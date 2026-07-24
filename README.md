@@ -55,6 +55,16 @@ Prefer manual control? Here's the three-step version:
 # 3. Drop source files in .raw/ and run /wiki-ingest
 ```
 
+### Dedicated Agent Machine (DAM)
+
+Setting up a machine whose *sole job* is to be the wiki agent (e.g. a
+[DAM](https://github.com/dam-agents) pod)? Don't use quickstart — follow
+[INSTALLATION.md](INSTALLATION.md). It bootstraps this repo into the agent's
+work directory, symlink-installs everything (so `git pull` updates the
+agent), makes every session wiki-aware via [AGENT.md](AGENT.md), and hands
+off to the `/wiki-onboard` interview. Install once per machine; onboarding
+runs per wiki.
+
 ### More Options
 
 See the [Quick Start Guide](https://github.com/6eanut/llm-wiki/wiki/Quick-Start) on the wiki for troubleshooting and advanced configuration.

@@ -11,6 +11,27 @@ set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/../scripts/_utils.sh"
 
 WIKI_ROOT=$(find_wiki_root)
+AGENT_SENTINEL="$HOME/.llm-wiki-installed"
+
+# Agent mode (agent-install.sh ran on this machine): gate on onboarding.
+# Install is per-machine, onboarding is per-wiki — see workflows/onboard.md.
+if [ -f "$AGENT_SENTINEL" ]; then
+    if [ -z "$WIKI_ROOT" ] || [ ! -f "$WIKI_ROOT/.llm-wiki/onboarded" ]; then
+        cat << 'ONBOARD'
+---
+## LLM Wiki — Onboarding Required
+
+This machine is the LLM Wiki agent, but the wiki has not been created yet.
+
+**Do this FIRST, before handling any other request:** run the onboarding
+interview — `/wiki-onboard` (skill workflow `workflows/onboard.md`). Greet
+the user, explain this is a one-time setup, and guide them through it.
+---
+ONBOARD
+        exit 0
+    fi
+fi
+
 [ -z "$WIKI_ROOT" ] && exit 0
 
 HOT_CACHE="$WIKI_ROOT/.llm-wiki/cache/hot-cache.md"
@@ -83,6 +104,33 @@ if [ -f "$REVIEW_JSON" ]; then
 
     if [ "$PENDING" -gt 0 ]; then
         echo "🔔 **$PENDING pending review(s)** — run /wiki-review to process"
+        echo ""
+    fi
+fi
+
+# Un-ingested sources in .raw/ (hash has no .done sentinel yet)
+RAW_DIR="./.raw"
+if [ -d "$RAW_DIR" ]; then
+    NEW_SOURCES=""
+    for f in "$RAW_DIR"/*; do
+        [ -f "$f" ] || continue
+        HASH=$(sha256sum "$f" 2>/dev/null | cut -d' ' -f1)
+        [ -z "$HASH" ] && continue
+        if [ ! -f "$WIKI_ROOT/.llm-wiki/cache/ingests/$HASH.done" ]; then
+            NEW_SOURCES="$NEW_SOURCES- \`$f\`
+"
+        fi
+    done
+    if [ -n "$NEW_SOURCES" ]; then
+        echo "### New Sources Awaiting Ingestion / 待摄取的新来源"
+        printf '%s' "$NEW_SOURCES"
+        if [ -f "$AGENT_SENTINEL" ]; then
+            echo ""
+            echo "Ingest these now, silently, per the silent-ingestion policy: run the ingest workflow for each and report one summary line."
+        else
+            echo ""
+            echo "Run /wiki-ingest <file> to add them to the wiki."
+        fi
         echo ""
     fi
 fi
