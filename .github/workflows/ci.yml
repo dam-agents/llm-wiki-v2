@@ -16,7 +16,7 @@ jobs:
         uses: ludeeus/action-shellcheck@master
         with:
           scandir: "./llm-wiki"
-          additional_files: "uninstall.sh"
+          additional_files: "uninstall.sh bootstrap.sh"
 
   markdownlint:
     name: Markdown Lint
@@ -108,6 +108,22 @@ jobs:
           # Idempotent re-run must be a no-op
           HOME="$FAKE_HOME" bash "$GITHUB_WORKSPACE/llm-wiki/scripts/agent-install.sh" | grep -q "already installed"
           rm -rf "$FAKE_HOME"
+
+          echo "=== Testing bootstrap.sh (local bare remote, isolated HOME) ==="
+          BARE="$(mktemp -d)/origin.git"
+          git init --bare -b main "$BARE"
+          git -C "$GITHUB_WORKSPACE" push -q "$BARE" HEAD:main
+          BOOT_HOME="$(mktemp -d)"
+          BOOT_WORK="$(mktemp -d)"
+          cd "$BOOT_WORK"
+          HOME="$BOOT_HOME" LLM_WIKI_REPO="$BARE" bash "$GITHUB_WORKSPACE/bootstrap.sh"
+          test -L "$BOOT_HOME/.claude/skills/llm-wiki"
+          test -f "$BOOT_HOME/.llm-wiki-installed"
+          test -f "$BOOT_WORK/llm-wiki/SKILL.md"
+          # Re-run is a no-op
+          HOME="$BOOT_HOME" LLM_WIKI_REPO="$BARE" bash "$GITHUB_WORKSPACE/bootstrap.sh" | grep -q "already installed"
+          cd "$TMPDIR"
+          rm -rf "$BOOT_HOME" "$BOOT_WORK"
 
           cd /tmp
           rm -rf "$TMPDIR"

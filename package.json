@@ -23,8 +23,11 @@
   "files": [
     "llm-wiki/",
     "quickstart.sh",
+    "bootstrap.sh",
     "uninstall.sh",
-    "scripts/"
+    "scripts/",
+    "AGENT.md",
+    "INSTALLATION.md"
   ],
   "scripts": {
     "install": "./llm-wiki/install.sh",

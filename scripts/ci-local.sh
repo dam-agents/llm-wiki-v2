@@ -43,6 +43,7 @@ if command -v shellcheck &>/dev/null; then
         SH_FILES+=("$f")
     done < <(find llm-wiki -name "*.sh" -print0 2>/dev/null)
     SH_FILES+=("uninstall.sh")
+    SH_FILES+=("bootstrap.sh")
 
     if [ "${#SH_FILES[@]}" -eq 0 ]; then
         warn "No .sh files found to check."
@@ -257,6 +258,32 @@ EOF
         INTEGRATION_OK=false
     fi
     rm -rf "$FAKE_HOME"
+
+    # Test bootstrap.sh end-to-end against a local bare remote.
+    # Requires the agent-mode files to be committed at HEAD with no pending
+    # changes — bootstrap syncs from git, not the working tree.
+    echo ""
+    echo "--- Testing bootstrap.sh (local bare remote, isolated HOME) ---"
+    if git -C "$PROJECT_ROOT" cat-file -e HEAD:bootstrap.sh 2>/dev/null \
+        && [ -z "$(git -C "$PROJECT_ROOT" status --porcelain -- bootstrap.sh AGENT.md llm-wiki 2>/dev/null)" ]; then
+        BARE="$(mktemp -d)/origin.git"
+        BOOT_HOME="$(mktemp -d)"
+        BOOT_WORK="$(mktemp -d)"
+        git init --bare -b main -q "$BARE"
+        git -C "$PROJECT_ROOT" push -q "$BARE" HEAD:main
+        if (cd "$BOOT_WORK" && HOME="$BOOT_HOME" LLM_WIKI_REPO="$BARE" bash "$PROJECT_ROOT/bootstrap.sh" >/dev/null) \
+            && [ -L "$BOOT_HOME/.claude/skills/llm-wiki" ] \
+            && [ -f "$BOOT_HOME/.llm-wiki-installed" ] \
+            && [ -f "$BOOT_WORK/llm-wiki/SKILL.md" ]; then
+            success "  bootstrap.sh (sync + install)"
+        else
+            error "  bootstrap.sh failed"
+            INTEGRATION_OK=false
+        fi
+        rm -rf "$BOOT_HOME" "$BOOT_WORK"
+    else
+        warn "  bootstrap.sh/AGENT.md/llm-wiki not committed cleanly at HEAD — skipping (commit first to enable this test)"
+    fi
 
     if [ "$INTEGRATION_OK" = true ]; then
         echo ""

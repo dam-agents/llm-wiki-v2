@@ -1,15 +1,56 @@
 # INSTALLATION — Become the LLM Wiki Agent
 
-This document turns a brand-new machine with only a coding agent (Claude Code
-or another standard harness) into the **LLM Wiki agent**. It is written to be
-executed **by the agent itself**: the operator's entire job is one message
-like
+Installation turns a brand-new machine with only a coding agent (Claude Code
+or another standard harness) into the **LLM Wiki agent**. It is a single
+deterministic command — no interaction, no decisions, no agent reasoning.
 
-> Install yourself: fetch `https://github.com/dam-agents/llm-wiki-v2` and
-> follow `INSTALLATION.md`.
+It runs **once per machine** and does **not** include onboarding (the
+interactive wiki-setup interview). Onboarding is requested automatically at
+the next session start, or on demand — see below.
 
-Installation runs **once per machine**. The interactive wiki setup
-(onboarding) is a separate, per-wiki step that runs afterwards — see Step 4.
+## The One Command
+
+From the work directory (canonically `/home/agent/work`, the directory where
+every session starts):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/dam-agents/llm-wiki-v2/main/bootstrap.sh | bash
+```
+
+If the repo is already checked out here (pre-provisioned machine), the
+equivalent is just:
+
+```bash
+./bootstrap.sh
+```
+
+If an agent is running the install, this is the entire operator prompt:
+
+> Run this command from your current working directory and report the
+> result. Do not start onboarding:
+> `curl -fsSL https://raw.githubusercontent.com/dam-agents/llm-wiki-v2/main/bootstrap.sh | bash`
+
+## What It Does
+
+`bootstrap.sh` is idempotent (guarded by the `$HOME/.llm-wiki-installed`
+sentinel; re-runs exit early) and, in order:
+
+1. Syncs the agent-definition repo into the current directory: `git init`
+   if needed, add `origin`, `git fetch` + `git reset --hard origin/main`.
+   It **never runs `git clean`**, so untracked and gitignored content
+   (`wiki/`, user files in `.raw/`) survives every sync.
+2. Runs `llm-wiki/scripts/agent-install.sh`, which — for Claude Code —
+   symlinks `llm-wiki/` → `~/.claude/skills/llm-wiki`, the slash commands →
+   `~/.claude/commands/`, and `AGENT.md` → `~/.claude/CLAUDE.md` (an
+   existing regular file is backed up first); registers the global
+   `SessionStart`/`SessionEnd` hooks in `~/.claude/settings.json`; and
+   writes the sentinel.
+
+Because everything is a symlink into the repo, updating the agent later is
+just `git fetch origin && git reset --hard origin/main` — no reinstall.
+
+Override the source repo with `LLM_WIKI_REPO=<git-url>` when bootstrapping
+from a fork or mirror.
 
 ## Paths
 
@@ -21,63 +62,7 @@ Installation runs **once per machine**. The interactive wiki setup
 | `$HOME` | Agent state and secrets (`.claude/`, `.ssh/`, `.config/`) — never inside the repo |
 | `$HOME/.llm-wiki-installed` | Install sentinel — guards against re-running |
 
-## Step 0 — Guard
-
-Check the sentinel:
-
-```bash
-[ -f "$HOME/.llm-wiki-installed" ] && echo "Already installed on: $(cat "$HOME/.llm-wiki-installed")"
-```
-
-If it exists, installation is done — skip to Step 4 (onboarding hand-off).
-
-## Step 1 — Bootstrap the Repo into the Work Directory
-
-From inside the (possibly empty) work directory. If a provisioner already
-cloned the repo here (`.git` exists with the right origin), just sync it.
-
-```bash
-# From the work directory (your CWD at session start)
-if [ ! -d .git ]; then
-    git init -b main
-    git remote add origin https://github.com/dam-agents/llm-wiki-v2.git
-fi
-
-# Optional: route git auth through gh if it is installed and authenticated
-command -v gh >/dev/null && gh auth setup-git || true
-
-git fetch origin
-git reset --hard origin/main
-```
-
-Rules:
-
-- **Never run `git clean`** here — untracked and gitignored content
-  (`wiki/`, user files in `.raw/`) must survive every sync.
-- Do not commit instance content (the wiki, user sources) to this repo; the
-  `.gitignore` already excludes it.
-
-## Step 2 — Run the Installer
-
-```bash
-bash llm-wiki/scripts/agent-install.sh
-```
-
-The script is idempotent (re-runs are no-ops; `--force` re-applies) and does,
-for Claude Code:
-
-1. Symlinks `llm-wiki/` → `~/.claude/skills/llm-wiki` (skill)
-2. Symlinks `llm-wiki/commands/*.md` → `~/.claude/commands/` (slash commands)
-3. Symlinks `AGENT.md` → `~/.claude/CLAUDE.md` (global operating manual;
-   an existing regular file is backed up first)
-4. Registers the global `SessionStart`/`SessionEnd` hooks in
-   `~/.claude/settings.json` (wiki stats, onboarding gate, hot-cache)
-5. Writes the `$HOME/.llm-wiki-installed` sentinel
-
-Because everything is a symlink into this repo, updating the agent later is
-just `git fetch origin && git reset --hard origin/main` — no reinstall.
-
-## Step 3 — Verify
+## Verify
 
 ```bash
 readlink "$HOME/.claude/skills/llm-wiki"      # → <work>/llm-wiki
@@ -87,31 +72,32 @@ grep -c llm-wiki "$HOME/.claude/settings.json" # ≥ 2 (both hooks)
 cat "$HOME/.llm-wiki-installed"                # install timestamp
 ```
 
-If any check fails, re-run `agent-install.sh --force` and re-verify.
+If any check fails, run `llm-wiki/scripts/agent-install.sh --force` and
+re-verify.
 
-## Step 4 — Hand Off to Onboarding
+## Onboarding Is a Separate Step
 
-Installation is machine setup; the wiki itself does not exist yet. Now run
-the onboarding interview — as the agent, do this immediately in the same
-session:
+Installation is machine plumbing; the wiki does not exist yet, and the
+installer deliberately does not create it. Onboarding is interactive — it
+belongs to a conversation with the user, not to a script:
 
-- Follow `llm-wiki/workflows/onboard.md` (the `/wiki-onboard` command).
+- **Automatically**: the next session's start hook detects the missing
+  `./wiki/.llm-wiki/onboarded` sentinel and instructs the agent to run the
+  onboarding interview before anything else.
+- **On demand**: run `/wiki-onboard` (skill workflow
+  `llm-wiki/workflows/onboard.md`) whenever you're ready.
 
-Onboarding asks the user for the wiki's name, language, and purpose, then
-initializes `./wiki/`, optionally sets up a git remote and a maintenance
-schedule, offers a first ingestion, and writes the
-`./wiki/.llm-wiki/onboarded` sentinel. From then on, every session starts
-with wiki context injected by the hooks, and the agent operates per
-`AGENT.md`.
-
-If the wiki was restored from a remote (the `onboarded` sentinel already
-exists inside it), onboarding is skipped automatically — install is
-per-machine, onboarding is per-wiki.
+Onboarding asks for the wiki's name, language, and purpose, then initializes
+`./wiki/`, optionally sets up a git remote and a maintenance schedule,
+offers a first ingestion, and writes the sentinel. If the wiki was restored
+from a remote (the sentinel already exists inside it), onboarding is skipped
+automatically — install is per-machine, onboarding is per-wiki.
 
 ## Other Harnesses
 
-The skill is plain markdown + bash; only the wiring differs. To install for
-a harness other than Claude Code:
+The skill is plain markdown + bash; `bootstrap.sh` step 1 is
+harness-neutral, and only `agent-install.sh`'s wiring targets Claude Code.
+To install for another harness:
 
 | Claude Code mechanism | Generic equivalent |
 |-----------------------|--------------------|

@@ -58,12 +58,18 @@ Prefer manual control? Here's the three-step version:
 ### Dedicated Agent Machine (DAM)
 
 Setting up a machine whose *sole job* is to be the wiki agent (e.g. a
-[DAM](https://github.com/dam-agents) pod)? Don't use quickstart — follow
-[INSTALLATION.md](INSTALLATION.md). It bootstraps this repo into the agent's
-work directory, symlink-installs everything (so `git pull` updates the
-agent), makes every session wiki-aware via [AGENT.md](AGENT.md), and hands
-off to the `/wiki-onboard` interview. Install once per machine; onboarding
-runs per wiki.
+[DAM](https://github.com/dam-agents) pod)? Don't use quickstart — install is
+one static command (see [INSTALLATION.md](INSTALLATION.md)):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/dam-agents/llm-wiki-v2/main/bootstrap.sh | bash
+```
+
+It syncs this repo into the work directory and symlink-installs everything
+(so `git pull` updates the agent), making every session wiki-aware via
+[AGENT.md](AGENT.md). The interactive `/wiki-onboard` interview runs
+separately — the next session requests it automatically. Install once per
+machine; onboarding runs per wiki.
 
 ### More Options
 
