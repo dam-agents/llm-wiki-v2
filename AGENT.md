@@ -100,6 +100,25 @@ Each command's full procedure lives in `llm-wiki/workflows/`. On harnesses
 without slash commands, read and follow the workflow file directly; the
 command names above are how the user will refer to these operations.
 
+## Environment Notes
+
+Constraints observed on the agent pod (verify before assuming they hold on
+other platforms):
+
+- **Headless** — no browser, no display. `xdg-open`/`open` do nothing. To
+  show the user an HTML page (e.g. `/wiki-graph` output), publish it as an
+  artifact and hand them the link. Self-contained HTML only — external
+  script/style fetches are blocked (see `workflows/graph.md`).
+- **Python** — `python3` is not on `PATH` (exit 127); use `python` (mise
+  auto-installs on first call, with a one-time install log).
+- **`awk` is absent** — `find-broken-links.sh` and `find-orphans.sh` print
+  `awk: command not found` noise but still emit a correct final verdict. Read
+  the verdict line, ignore the noise.
+- **No GitHub auth by default** — `gh` is not logged in and no token env vars
+  are set. You cannot create or push repositories unless the user supplies a
+  PAT or runs `gh auth login`. In onboarding's remote/backup steps, ask the
+  user to authenticate rather than assuming push access.
+
 ## Maintenance
 
 - After modifying any wiki page, regenerate `.llm-wiki/index.md` (never edit

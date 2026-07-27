@@ -35,25 +35,51 @@ Write to `$WIKI_ROOT/.llm-wiki/graph.json`.
 
 ### Step 4: Generate graph.html
 
-Create a self-contained HTML file at `$WIKI_ROOT/.llm-wiki/graph.html` with:
+Create a **fully self-contained** HTML file at `$WIKI_ROOT/.llm-wiki/graph.html`:
 
-- Dark-themed D3.js v7 force-directed graph (CDN: `d3js.org/d3.v7.min.js`)
+- Dark-themed D3.js v7 force-directed graph
 - Color-coded nodes: concept=#5b9bd5, article=#ed7d31, person=#70ad47, synthesis=#ffc000
 - Node radius: `5 + min(incomingLinks, 15)` px
 - Tooltips on hover: title, type, language, link counts, tags
 - Draggable nodes, zoom/pan on SVG
 - Legend for type colors
-- Graph data embedded as inline JavaScript variable
+- Graph data embedded as an inline JavaScript variable
 
-### Step 5: Present
+⚠️ **No external fetches.** Do not `<script src="d3js.org/...">` — sandboxed
+viewers block external scripts, leaving a blank canvas. Inline D3 into a
+`<script>` block: `curl -s https://d3js.org/d3.v7.min.js` and paste the
+contents in. All CSS/JS/data must live in the single file.
+
+⚠️ **Declaration order (TDZ).** Any helper a force accessor calls must be
+declared *above* the simulation. Put `const radius = d => ...` before the
+`d3.forceSimulation(...).force("collide", d3.forceCollide().radius(d => radius(d) + 6))`
+block — `const` is not hoisted, so a forward reference throws "Cannot access
+'radius' before initialization" and blanks the graph.
+
+### Step 5: Publish + Present
+
+**Publish `graph.html` as an artifact automatically** — do not ask first, and
+do not just hand over a local file path (the environment is headless; the user
+cannot open it). Use the artifact-publishing MCP tool available in this
+environment, then give the user the returned link.
+
+- Declare it as **HTML explicitly**: pass an HTML type and, if the tool uploads
+  via a presigned PUT, set `Content-Type: text/html`. With no content type the
+  upload is mis-registered as `application/x-www-form-urlencoded` and the share
+  page won't render.
+- Re-publishing an updated graph should reuse the same artifact where the tool
+  supports it, so the user's link stays stable.
+
+Then present:
 
 ```
 # Knowledge Graph / 知识图谱
 **Nodes:** {N} | **Edges:** {N} | **Orphans:** {N} | **Hubs:** {N}
-Graph: wiki/.llm-wiki/graph.html | Data: wiki/.llm-wiki/graph.json
+Graph: <artifact link> | Data: wiki/.llm-wiki/graph.json
 ```
 
-Offer to open with `xdg-open` or `open`.
+**Fallback** (no artifact tool available): report the file path
+`wiki/.llm-wiki/graph.html`, and on a local desktop offer `xdg-open` / `open`.
 
 ---
 
