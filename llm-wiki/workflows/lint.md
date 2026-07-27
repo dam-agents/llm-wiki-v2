@@ -34,7 +34,7 @@ scripts/validate-frontmatter.sh "$WIKI_ROOT"
 - All pages have `---` frontmatter delimiters
 - Required fields present: `title`, `type`, `language`, `created`, `modified`, `tags`, `summary`
 - `type` is one of: `concept`, `article`, `person`, `synthesis`
-- `language` is one of: `en`, `zh`, `bilingual`
+- `language` is `en` (the wiki is English-only)
 - Dates are in `YYYY-MM-DD` format
 
 **Exit codes:** 0 = all valid, 1 = issues found
@@ -205,11 +205,9 @@ For each page, assess:
 
 ### Step F4: Language Consistency
 
-1. For each page, compare the `language` field against actual body content:
-   - `language: en` but body is mostly Chinese → flag
-   - `language: zh` but body is mostly English → flag
-2. Check bilingual pages have actual content in both languages (not just headings)
-3. Verify aliases exist for cross-language linking
+1. The wiki is English-only — flag any page whose body contains substantial
+   non-English content (it should have been translated during ingest).
+2. Flag any page whose `language` field is not `en`.
 
 ### Step F5: Drift Detection
 
@@ -270,7 +268,7 @@ Add to `$WIKI_ROOT/.llm-wiki/review.json`.
 ## Language Issues ({N})
 | Page | Issue |
 |------|-------|
-| [[z]] | Tagged 'en' but body is Chinese |
+| [[z]] | Body contains non-English content |
 
 ## Knowledge Gaps ({N})
 | Gap | Priority | Suggested Source |

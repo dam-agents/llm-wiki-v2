@@ -182,7 +182,7 @@ wiki/
 
 ```yaml
 type: concept
-language: en | zh | bilingual
+language: en
 ```
 
 Body: Definition → Key Properties → Examples → Related
@@ -212,12 +212,11 @@ File: `synth-YYYY-MM-DD-{slug}.md`
 
 ---
 
-## Bilingual Support
+## Language
 
-- **Auto-detection**: CJK character ratio determines `zh` / `en` / `bilingual`
-- **Page titles**: `"English"` format for bilingual pages
-- **Cross-language wikilinks**: `aliases` field provides translations for link resolution
-- **Query matching**: Prefers same-language pages, falls back across languages
+The wiki is English-only. All page content — titles, headings, bodies,
+summaries, tags — is written in English. Sources in other languages are
+translated into English during ingest (proper nouns preserved).
 
 ---
 
@@ -285,7 +284,7 @@ llm-wiki/
 | **Incremental caching** | SHA-256 sentinel files prevent re-work. |
 | **Two-phase ingest** | Human checkpoint between analysis and generation. |
 | **Hot cache** | Multi-session context bridge via SessionStop/SessionStart hooks. |
-| **True bilingual** | `language` field, CJK detection, cross-language aliases. |
+| **English-only** | All content in English; non-English sources translated at ingest. |
 | **Lint separation** | Quick (bash, free) vs Full (LLM, thorough) — pay only when needed. |
 
 ---

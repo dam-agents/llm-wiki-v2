@@ -155,4 +155,4 @@ see `INSTALLATION.md` in the repo root):
 - **Incremental caching**: SHA-256 of sources prevents re-ingesting unchanged files.
 - **Two-phase ingest**: Phase 1 = analysis (reviewable by user), Phase 2 = page generation.
 - **Hot cache**: Bridges context between sessions so you don't start cold.
-- **True bilingual**: Every page has a `language` field; templates support both zh and en.
+- **English-only**: All wiki content is written in English; sources in other languages are translated during ingest.

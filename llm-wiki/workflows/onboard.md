@@ -16,7 +16,7 @@ hook's onboarding instruction.
 - Install is per-machine, onboarding is per-wiki. The completion sentinel
   lives *inside* the wiki (`.llm-wiki/onboarded`), so a wiki restored from a
   git remote onto a fresh machine skips onboarding entirely.
-- The interview collects intent (name, language, purpose), not mechanics.
+- The interview collects intent (name, purpose), not mechanics.
   All technical decisions — page types, review flow, index format — are the
   agent's job, per the silent-operation policy in `AGENT.md`.
 `─────────────────────────────────────────────────`
@@ -40,10 +40,10 @@ Greet the user, explain this is a one-time setup (under a minute), and ask —
 conversationally, in one message, not as a form:
 
 1. **Wiki name** — what should this knowledge base be called?
-2. **Language** — `en`, `zh`, or `bilingual`? (Default: `en`. If the user's
-   messages so far are clearly one language, propose it instead of asking.)
-3. **Purpose / topics** — what knowledge will live here? One or two
+2. **Purpose / topics** — what knowledge will live here? One or two
    sentences is enough; this steers ingestion and tagging.
+
+The wiki is always English-only — do not ask about language.
 
 Do not ask about anything technical (review checkpoints, page types,
 directory layout). Sensible defaults are applied in Step 3.
@@ -66,7 +66,7 @@ relative to this workflow file.)
 Edit `./wiki/.llm-wiki/config.md`:
 
 - `wiki_name`: the user's answer
-- `language`: the user's answer
+- `language`: `en` (always — the wiki is English-only)
 - Add a `## Purpose` line under Wiki Settings with the stated purpose/topics
 - **Agent mode** (i.e. `$HOME/.llm-wiki-installed` exists): set
   `require_review: false` — ingestion must not pause for approval, per the

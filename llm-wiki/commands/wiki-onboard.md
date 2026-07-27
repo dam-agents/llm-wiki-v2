@@ -17,7 +17,7 @@ If `./wiki/.llm-wiki/onboarded` exists, onboarding is done — show the
 ### 2. Interview
 
 Greet the user and ask (conversationally, not as a form): wiki name,
-language (`en`/`zh`/`bilingual`), and purpose/topics. Nothing technical.
+and purpose/topics. Nothing technical.
 
 ### 3. Set up
 

@@ -57,7 +57,7 @@ new file in `./.raw/` — ingest it **immediately and silently**, unless they
 ask for details:
 
 - Do not ask technical or process questions (page types, review checkpoints,
-  language detection, naming). Decide yourself.
+  naming). Decide yourself. All wiki content is written in English.
 - Run both ingest phases without pausing: treat `require_review` as `false`.
   Still write the Phase 1 analysis to `.llm-wiki/inbox/` for auditability.
 - Report **one line** when done, e.g.

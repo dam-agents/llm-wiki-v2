@@ -97,7 +97,7 @@ belongs to a conversation with the user, not to a script:
 - **On demand**: run `/wiki-onboard` (skill workflow
   `~/.llm-wiki-agent/llm-wiki/workflows/onboard.md`) whenever you're ready.
 
-Onboarding asks for the wiki's name, language, and purpose, then initializes
+Onboarding asks for the wiki's name and purpose, then initializes
 `<work>/wiki/`, optionally sets up a git remote and a maintenance schedule,
 offers a first ingestion, and writes the sentinel. If the wiki was restored
 from a remote (the sentinel already exists inside it), onboarding is skipped

@@ -353,7 +353,6 @@ Present a clean summary to the user:
 # Ingest Complete
 
 **Source:** {source name}
-**Language:** {en|zh|bilingual}
 
 ## Created
 | File | Type | Title |

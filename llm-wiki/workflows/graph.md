@@ -20,7 +20,7 @@ Build structure:
 
 ```json
 {
-  "nodes": [{"id": "slug", "title": "Display Title", "type": "concept|article|person|synthesis", "language": "en|zh|bilingual", "tags": ["tag1"], "incomingLinks": N, "outgoingLinks": N}],
+  "nodes": [{"id": "slug", "title": "Display Title", "type": "concept|article|person|synthesis", "language": "en", "tags": ["tag1"], "incomingLinks": N, "outgoingLinks": N}],
   "edges": [{"source": "page-a", "target": "page-b"}]
 }
 ```

@@ -70,9 +70,9 @@ The ingest workflow automatically detects contradictions and adds callout blocks
 
 In `wiki/.llm-wiki/config.md`. This file is created by `init-wiki.sh` and contains:
 
-- Wiki name and language preferences
+- Wiki name and purpose
 - Ingest settings (auto-index, two-phase, review requirements)
-- Query settings (max pages to read, language matching)
+- Query settings (max pages to read)
 - Lint settings (startup lint, full lint frequency)
 
 ### How do I change the wiki root directory?

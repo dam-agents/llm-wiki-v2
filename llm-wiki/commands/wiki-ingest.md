@@ -35,7 +35,6 @@ Check `./wiki/.llm-wiki/index.md`. If not found, offer to run init-wiki.sh.
 
 Use `Skill("llm-wiki")` to load the complete ingestion procedure from `workflows/ingest.md`, which covers:
 
-- Language detection
 - Concept/person/article extraction
 - Contradiction detection
 - Two-phase generation with user review checkpoints

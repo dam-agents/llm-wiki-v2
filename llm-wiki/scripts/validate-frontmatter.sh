@@ -23,7 +23,7 @@ fi
 
 REQUIRED_FIELDS=("title" "type" "language" "created" "modified" "tags" "summary")
 VALID_TYPES=("concept" "article" "person" "synthesis")
-VALID_LANGUAGES=("en" "zh" "bilingual")
+VALID_LANGUAGES=("en")
 
 ISSUES_FOUND=0
 
