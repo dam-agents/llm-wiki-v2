@@ -108,18 +108,18 @@ When the user invokes `/wiki`, do the following:
 5. **Present the dashboard**:
 
 ```
-# Wiki Dashboard / 维基面板
+# Wiki Dashboard
 
 **Total pages:** {N}
 **Last updated:** {timestamp}
 **Index status:** {fresh|stale — run /wiki-lint}
 
-## Recent Activity / 最近活动
+## Recent Activity
 | Date | Operation | Title |
 |------|-----------|-------|
 ... (from log if exists, or index modified dates)
 
-## Page Types / 页面类型
+## Page Types
 | Type | Count |
 |------|-------|
 | concept | N |
@@ -127,10 +127,10 @@ When the user invokes `/wiki`, do the following:
 | person | N |
 | synthesis | N |
 
-## Pending Review / 待审核 ({N})
+## Pending Review ({N})
 ... (from review.json)
 
-## Active Topics / 活跃主题
+## Active Topics
 ... (from hot-cache if available)
 ```
 

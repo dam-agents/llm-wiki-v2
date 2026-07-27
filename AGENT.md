@@ -66,8 +66,16 @@ ask for details:
   them later as a hint, not as a blocking question.
 - Only errors interrupt the user.
 
+Ingestion is **lock-guarded**: several sessions may be open on the same wiki
+at once. Before ingesting any source, acquire its per-source lock
+(`.llm-wiki/cache/ingests/$HASH.lock`, workflow `ingest.md` Step 2b). If a
+fresh lock is held by another session, skip that source and say so in one
+line — never ingest past someone else's lock. Release the lock when the
+`.done` sentinel is written, or immediately if the ingest fails.
+
 The session-start hook lists any un-ingested files in `./.raw/` — ingest
-those the same way at the start of the session.
+those the same way at the start of the session. Sources the hook reports as
+locked by another session are not yours to take.
 
 ## Rule 3 — Proactive, Contextual Hints
 

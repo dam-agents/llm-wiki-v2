@@ -12,7 +12,8 @@
 
 - Two-phase ingest separates "what should we extract?" (analysis) from "how do we write it?" (generation). This gives the user a checkpoint to correct the LLM's understanding before pages are created, preventing garbage-in-garbage-out compounding.
 - SHA-256 sentinel files (`cache/ingests/$HASH.done`) make re-ingestion idempotent — the same source can be dropped into `.raw/` again without duplicating pages. This is crucial for automated workflows (cron, watch-directory).
-- The contradiction detection step (Phase 1, step 7) is the single most valuable quality lever — it catches inconsistent claims across pages before they become entrenched.
+- Lock directories (`cache/ingests/$HASH.lock`) make ingestion safe under concurrency. The `.done` sentinel only appears at the *end* of an ingest, so without a lock two parallel sessions both see "not yet ingested" and duplicate the work. `mkdir` is atomic — exactly one session wins the lock.
+- The contradiction detection step (Phase 1, step 6) is the single most valuable quality lever — it catches inconsistent claims across pages before they become entrenched.
 `─────────────────────────────────────────────────`
 
 ---
@@ -41,7 +42,7 @@ scripts/hash-files.sh <source_path>
 - Pipe content through `sha256sum` to compute hash
 - Store the fetched content as a temporary reference (or write to `.raw/` if configured)
 
-### Step 2: Check if Already Ingested
+### Step 2: Check State — Done, In Progress, or New
 
 ```bash
 test -f "$WIKI_ROOT/.llm-wiki/cache/ingests/$HASH.done"
@@ -51,6 +52,39 @@ If the sentinel file exists → **skip entirely**:
 
 - Report: "This source was already ingested on {date}. Skipping."
 - If the user wants to re-ingest: they should delete the sentinel file first.
+
+### Step 2b: Acquire the Ingest Lock
+
+Another session (a parallel conversation, a cron sweep) may be ingesting this
+source right now. Acquire a per-source lock before doing any work:
+
+```bash
+INGESTS="$WIKI_ROOT/.llm-wiki/cache/ingests"
+LOCK="$INGESTS/$HASH.lock"
+mkdir -p "$INGESTS"
+
+# A lock older than 60 minutes is stale (crashed/abandoned session) — reclaim it.
+if [ -d "$LOCK" ] && [ -z "$(find "$LOCK" -maxdepth 0 -mmin -60 2>/dev/null)" ]; then
+    rm -rf "$LOCK"
+fi
+
+if mkdir "$LOCK" 2>/dev/null; then
+    date -u +"%Y-%m-%dT%H:%M:%SZ" > "$LOCK/started"
+    echo "LOCK ACQUIRED"
+else
+    echo "IN PROGRESS — locked since $(cat "$LOCK/started" 2>/dev/null || echo unknown)"
+fi
+```
+
+If the output is `IN PROGRESS` → **stop here for this source**:
+
+- Report: "Another session is ingesting this source (started {time}). Skipping."
+- Do NOT delete a fresh lock, do NOT proceed to Phase 1. If the user insists
+  the other session is dead, they can remove the lock; otherwise the 60-minute
+  staleness window reclaims it automatically.
+
+Holding the lock obligates you to release it in Step 15 — including when the
+ingest fails partway (see Edge Cases).
 
 ---
 
@@ -66,7 +100,7 @@ Read these files to understand the current state of the wiki:
 2. **`.llm-wiki/index.md`** (project-level) — all existing pages, tags, summaries
    - Path: `$WIKI_ROOT/.llm-wiki/index.md`
 
-3. **`.llm-wiki/config.md`** (project-level) — user settings (language, review preferences)
+3. **`.llm-wiki/config.md`** (project-level) — user settings (review preferences)
    - Path: `$WIKI_ROOT/.llm-wiki/config.md`
 
 ### Step 4: Read the Source Content
@@ -77,19 +111,12 @@ Read these files to understand the current state of the wiki:
 
 If the content is too large (>15,000 words), read it in chunks. For very large sources (books, long PDFs), suggest the user split it first.
 
-### Step 5: Detect Language
+The wiki is English-only. If the source is in another language, translate its
+content into English as you extract it — page titles, summaries, and bodies are
+always written in English. Preserve original proper nouns and cite the source
+as-is.
 
-Analyze the source content:
-
-- Count CJK characters (Unicode U+4E00–U+9FFF)
-- Count Latin characters (a-z, A-Z)
-- `>70% CJK` → `zh`
-- `>70% Latin` → `en`
-- `30-70% mix` → `bilingual`
-
-Store this as `SOURCE_LANGUAGE` for later steps.
-
-### Step 6: Extract Key Elements
+### Step 5: Extract Key Elements
 
 From the source, identify:
 
@@ -115,7 +142,7 @@ From the source, identify:
 - What concepts need their own pages?
 - What are the natural relationships?
 
-### Step 7: Detect Contradictions
+### Step 6: Detect Contradictions
 
 Compare extracted claims against existing wiki pages:
 
@@ -124,26 +151,25 @@ Compare extracted claims against existing wiki pages:
 - Flag any direct contradictions (two pages saying different things about the same fact)
 - Flag any indirect contradictions (different interpretations or frameworks)
 
-### Step 8: Write Phase 1 Analysis
+### Step 7: Write Phase 1 Analysis
 
 Write the analysis to `$WIKI_ROOT/.llm-wiki/inbox/$HASH-analysis.md`:
 
 ```markdown
 # Ingest Analysis — {source name}
 **Source hash:** `$HASH`
-**Language detected:** {en|zh|bilingual}
 **Analyzed:** {ISO timestamp}
 
-## Source Summary / 来源摘要
+## Source Summary
 [2-3 sentence summary of the source content.]
 
-## Concepts to Extract / 待提取概念
+## Concepts to Extract
 | Concept | Action | Reason |
 |---------|--------|--------|
 | concept-name | create | New concept defined in source |
 | existing-concept | update | New information to add |
 
-## Persons to Create/Update / 待创建/更新的人物
+## Persons to Create/Update
 | Person | Action | Details |
 |--------|--------|---------|
 | name | create | Key contributor |
@@ -153,19 +179,19 @@ Write the analysis to `$WIKI_ROOT/.llm-wiki/inbox/$HASH-analysis.md`:
 |----------|------|-------|-------------|
 | ... | article | ... | ... |
 
-## Contradictions Detected / 检测到的矛盾
+## Contradictions Detected
 | Existing Page | New Claim | Conflict |
 |---------------|-----------|----------|
 | [[page-a]] | "Claim from source" | "Existing claim from page-a" |
 
-## Proposed Cross-Links / 建议的交叉链接
+## Proposed Cross-Links
 - [[page-a]] ↔ [[new-page]] — relationship description
 
-## Items for User Review / 待用户审核
+## Items for User Review
 - [ ] Decision point or question for the user
 ```
 
-### Step 9: Present Analysis for Review
+### Step 8: Present Analysis for Review
 
 Show the user a summary of the analysis:
 
@@ -182,16 +208,16 @@ Show the user a summary of the analysis:
 
 ## Phase 2 — Generation
 
-### Step 10: Create/Update Article Page
+### Step 9: Create/Update Article Page
 
 **If the source warrants an article page** (research notes, blog post, imported article):
 
 1. Read `templates/article.md` from the skill directory
 2. Create `$WIKI_ROOT/{YYYY-MM-DD}-{slug}.md`
 3. Fill frontmatter:
-   - `title`: Descriptive title (use bilingual format if source is bilingual)
+   - `title`: Descriptive title in English
    - `type: article`
-   - `language`: from Step 5 detection
+   - `language: en`
    - `created`, `modified`: today's date
    - `tags`: derived from content
    - `summary`: one-sentence overview
@@ -200,7 +226,7 @@ Show the user a summary of the analysis:
 4. Fill body following the template structure
 5. Include [[wikilinks]] to all related concept/person pages
 
-### Step 11: Create/Update Concept Pages
+### Step 10: Create/Update Concept Pages
 
 For each concept identified in Phase 1:
 
@@ -223,7 +249,7 @@ For each concept identified in Phase 1:
 4. Update `modified` date
 5. Add new [[wikilinks]] as appropriate
 
-### Step 12: Create/Update Person Pages
+### Step 11: Create/Update Person Pages
 
 For each person identified in Phase 1:
 
@@ -237,7 +263,7 @@ For each person identified in Phase 1:
 
 **If updating:** Same pattern as concept updates (add, don't overwrite).
 
-### Step 13: Cross-Link All Pages
+### Step 12: Cross-Link All Pages
 
 After creating all new pages:
 
@@ -246,7 +272,7 @@ After creating all new pages:
 3. Add reverse links where appropriate
 4. Ensure no orphan pages were created (every new page should have at least one incoming link)
 
-### Step 14: Add Contradiction Callouts
+### Step 13: Add Contradiction Callouts
 
 For each contradiction found in Phase 1:
 
@@ -254,8 +280,8 @@ For each contradiction found in Phase 1:
 2. Format per `WIKI_SCHEMA.md` conventions:
 
    ```markdown
-   > ⚠️ **Contradiction / 矛盾**: [description]
-   > | Page | Claim / 主张 |
+   > ⚠️ **Contradiction**: [description]
+   > | Page | Claim |
    > |------|-------------|
    > | [[page-a]] | "Claim A" |
    > | [[page-b]] | "Claim B — contradicts A" |
@@ -268,7 +294,7 @@ For each contradiction found in Phase 1:
    {"type": "contradiction", "pages": ["page-a", "page-b"], "description": "...", "detected": "YYYY-MM-DD"}
    ```
 
-### Step 15: Regenerate Index
+### Step 14: Regenerate Index
 
 **This is a programmatic operation — do not edit index.md by hand.**
 
@@ -284,19 +310,34 @@ For each contradiction found in Phase 1:
    - Review Queue section (from `review.json`)
 6. Write to `$WIKI_ROOT/.llm-wiki/index.md`
 
-### Step 16: Write Sentinel + Update Manifest
+### Step 15: Write Sentinel + Release Lock + Update Manifest
 
-1. Create sentinel file:
+1. Create the sentinel, then release the lock (this order — the sentinel must
+   exist before the lock disappears, or another session can slip in between):
 
    ```bash
    mkdir -p "$WIKI_ROOT/.llm-wiki/cache/ingests"
-   echo "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" > "$WIKI_ROOT/.llm-wiki/cache/ingests/$HASH.done"
+   date -u +"%Y-%m-%dT%H:%M:%SZ" > "$WIKI_ROOT/.llm-wiki/cache/ingests/$HASH.done"
+   rm -rf "$WIKI_ROOT/.llm-wiki/cache/ingests/$HASH.lock"
    ```
 
-2. Update `source-manifest.json`:
-   - Read existing manifest
-   - Add entry: `{"$HASH": {"name": "source name", "date": "ISO timestamp", "language": "en|zh|bilingual", "pages_created": [...], "pages_updated": [...]}}`
-   - Write back
+   Use the real `date` command — never hand-write a timestamp literal.
+
+2. Update `source-manifest.json` by **merging**, never by rewriting the file
+   from scratch (a heredoc/`Write` of just the new entry destroys the record
+   of every previous ingest):
+
+   ```bash
+   MANIFEST="$WIKI_ROOT/.llm-wiki/source-manifest.json"
+   [ -s "$MANIFEST" ] || echo '{}' > "$MANIFEST"
+   jq --arg h "$HASH" --argjson e '{
+     "name": "source name",
+     "date": "ISO timestamp",
+     "language": "en",
+     "pages_created": ["..."],
+     "pages_updated": ["..."]
+   }' '. + {($h): $e}' "$MANIFEST" > "$MANIFEST.tmp" && mv "$MANIFEST.tmp" "$MANIFEST"
+   ```
 
 3. Store index hash for staleness detection:
 
@@ -304,30 +345,30 @@ For each contradiction found in Phase 1:
    scripts/check-stale.sh "$WIKI_ROOT"  # computes and stores hash
    ```
 
-### Step 17: Report Summary
+### Step 16: Report Summary
 
 Present a clean summary to the user:
 
 ```
-# Ingest Complete / 摄取完成
+# Ingest Complete
 
 **Source:** {source name}
 **Language:** {en|zh|bilingual}
 
-## Created / 新建
+## Created
 | File | Type | Title |
 |------|------|-------|
 | ... | concept | ... |
 | ... | article | ... |
 
-## Updated / 更新
+## Updated
 | File | What changed |
 |------|-------------|
 
-## Contradictions / 矛盾
+## Contradictions
 {count} new contradictions flagged — run /wiki-lint to review
 
-## Next Steps / 下一步
+## Next Steps
 - Run /wiki-lint to check health
 - Use /wiki-query to test the new knowledge
 ```
@@ -365,8 +406,19 @@ Present a clean summary to the user:
 - If a new claim directly contradicts an existing claim, add contradiction callouts to BOTH pages.
 - If you're unsure, add to review queue and flag for user attention.
 
+### Failed or Interrupted Ingest
+
+- If an ingest fails partway and you can still act: remove the lock
+  (`rm -rf "$INGESTS/$HASH.lock"`) but do NOT write the `.done` sentinel — the
+  source stays eligible for a clean retry.
+- If the session dies holding the lock, the 60-minute staleness window in
+  Step 2b reclaims it — no manual cleanup needed, just a delay.
+- The sentinel won't exist yet, so the source will be re-processed — Phase 1
+  analysis will be cached in `inbox/`.
+
 ### Rate Limiting / Token Budget
 
 - For very large ingests, break work across multiple sessions
 - Use the hot-cache to track progress
-- If interrupted, the sentinel file won't exist yet, so the source will be re-processed — Phase 1 analysis will be cached in `inbox/`
+- If you deliberately pause across sessions, keep the lock only while actively
+  working; release it between sessions so a stale lock doesn't mask the source

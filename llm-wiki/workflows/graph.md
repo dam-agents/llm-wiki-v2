@@ -73,7 +73,7 @@ environment, then give the user the returned link.
 Then present:
 
 ```
-# Knowledge Graph / 知识图谱
+# Knowledge Graph
 **Nodes:** {N} | **Edges:** {N} | **Orphans:** {N} | **Hubs:** {N}
 Graph: <artifact link> | Data: wiki/.llm-wiki/graph.json
 ```

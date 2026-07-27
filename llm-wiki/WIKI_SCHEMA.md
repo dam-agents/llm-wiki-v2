@@ -36,13 +36,13 @@ Read this file when you need to understand:
 
 ```yaml
 ---
-title: "Display Title"              # Can be bilingual: "Quantum Computing / 量子计算"
+title: "Display Title"              # English, Title Case
 type: concept
-language: en | zh | bilingual       # Primary language of the page body
+language: en                        # Always en — the wiki is English-only
 created: YYYY-MM-DD
 modified: YYYY-MM-DD
 tags: []                            # Lowercase kebab-case: [machine-learning, nlp]
-aliases: []                         # Alternative names, include translations
+aliases: []                         # Alternative names and abbreviations
 summary: ""                         # One-sentence definition (used in index)
 ---
 ```
@@ -61,21 +61,21 @@ related_concepts: []                # Explicit related slugs (beyond wikilinks)
 ```markdown
 # {Title}
 
-## Definition / 定义
+## Definition
 [Clear, concise definition. 2-4 sentences.]
 
-## Key Properties / 关键特性
+## Key Properties
 - Property 1
 - Property 2
 
-## Examples / 示例
+## Examples
 [Concrete examples or use cases.]
 
-## Related Concepts / 相关概念
+## Related Concepts
 - [[related-slug]] — brief description of relationship
 - [[another-slug]] — brief description of relationship
 
-## References / 参考资料
+## References
 - Source material used to construct this page
 ```
 
@@ -96,7 +96,7 @@ related_concepts: []                # Explicit related slugs (beyond wikilinks)
 ---
 title: "Display Title"
 type: article
-language: en | zh | bilingual
+language: en
 created: YYYY-MM-DD
 modified: YYYY-MM-DD
 tags: []
@@ -119,17 +119,17 @@ diary_date: YYYY-MM-DD              # For diary entries
 ```markdown
 # {Title}
 
-## Summary / 摘要
+## Summary
 [2-4 sentence overview.]
 
-## Content / 内容
+## Content
 [Main body — flexible format depending on content type.]
 
-## Key Takeaways / 关键收获
+## Key Takeaways
 - Takeaway 1
 - Takeaway 2
 
-## Related / 关联
+## Related
 - [[related-slug]] — connection
 ```
 
@@ -150,7 +150,7 @@ diary_date: YYYY-MM-DD              # For diary entries
 ---
 title: "Display Name"
 type: person
-language: en | zh | bilingual
+language: en
 created: YYYY-MM-DD
 modified: YYYY-MM-DD
 tags: []
@@ -174,18 +174,18 @@ affiliations: []                    # Organizations they're associated with
 ```markdown
 # {Name}
 
-## Bio / 简介
+## Bio
 [Brief biography — 3-5 sentences.]
 
-## Key Contributions / 主要贡献
+## Key Contributions
 - Contribution 1
 - Contribution 2
 
-## Related Work / 相关工作
+## Related Work
 - [[related-concept]] — their role
 - [[related-person]] — collaboration or influence
 
-## Links / 链接
+## Links
 - [Personal site](url)
 - [Wikipedia](url)
 ```
@@ -206,7 +206,7 @@ affiliations: []                    # Organizations they're associated with
 ---
 title: "Display Title"
 type: synthesis
-language: en | zh | bilingual
+language: en
 created: YYYY-MM-DD
 modified: YYYY-MM-DD
 tags: []
@@ -229,30 +229,30 @@ gaps_noted: []                      # Knowledge gaps identified
 ```markdown
 # {Title}
 
-## Question / 问题
+## Question
 > Original question
 
-## Answer / 回答
+## Answer
 [Direct answer, synthesized from evidence.]
 
-## Evidence / 证据
+## Evidence
 | Source Page | Key Point | Relevance |
 |-------------|-----------|-----------|
 | [[slug-a]] | ... | high |
 | [[slug-b]] | ... | medium |
 
-## Contradictions / 矛盾
-> ⚠️ **Contradiction / 矛盾**: [description]
+## Contradictions
+> ⚠️ **Contradiction**: [description]
 >
 > | Page | Claim |
 > |------|-------|
 > | [[page-a]] | Claim X |
 > | [[page-b]] | Claim Y (conflicts with X) |
 
-## Gaps / 知识缺口
+## Gaps
 - What the wiki doesn't cover on this topic
 
-## Confidence / 置信度: {high|medium|low}
+## Confidence: {high|medium|low}
 [Reasoning for confidence level.]
 ```
 
@@ -279,9 +279,9 @@ gaps_noted: []                      # Knowledge gaps identified
 When a contradiction is detected between pages, format as:
 
 ```markdown
-> ⚠️ **Contradiction / 矛盾**: [description of what conflicts]
+> ⚠️ **Contradiction**: [description of what conflicts]
 >
-> | Page | Claim / 主张 |
+> | Page | Claim |
 > |------|-------------|
 > | [[page-a]] | "Claim A from this page" |
 > | [[page-b]] | "Claim B — contradicts A" |
@@ -313,10 +313,10 @@ The index at `.llm-wiki/index.md` is **auto-generated** and follows this format:
 ### {tag-name} ({N} pages)
 - [[slug]] — summary
 
-## Orphan Pages / 孤立页面
+## Orphan Pages
 - [[slug]] — summary (no incoming links)
 
-## Review Queue / 审核队列
+## Review Queue
 - [[slug]] — ⚠️ issue description
 ```
 
@@ -328,9 +328,8 @@ The index at `.llm-wiki/index.md` is **auto-generated** and follows this format:
 |---------|-----------|---------|
 | Page slugs | lowercase kebab-case | `machine-learning.md` |
 | Tags | lowercase kebab-case | `deep-learning`, `nlp` |
-| Display titles | Title Case, can include non-ASCII | `Machine Learning`, `机器学习` |
+| Display titles | Title Case, English | `Machine Learning` |
 | Date format | YYYY-MM-DD | `2026-04-28` |
-| Bilingual titles | "English / 中文" | `Quantum Computing / 量子计算` |
 
 ### Slug Derivation
 
@@ -346,35 +345,15 @@ When deriving a slug from a title:
 
 ## Language Handling
 
-### Page Language (`language` field)
+The wiki is English-only:
 
-- `en` — Page body is primarily English
-- `zh` — Page body is primarily Chinese
-- `bilingual` — Page has substantial content in both languages
-
-### Source Language Detection (during ingest)
-
-- Count CJK characters (Unicode range U+4E00–U+9FFF) vs Latin characters
-- If >70% CJK → `zh`
-- If >70% Latin → `en`
-- If 30-70% mix → `bilingual`
-
-### Bilingual Page Convention
-
-Bilingual pages use this section heading pattern:
-
-```markdown
-## Section Name / 中文标题
-```
-
-### Query Language Matching
-
-When answering a query:
-
-- Detect the query language
-- Prefer pages with matching `language` field
-- Fall back to other-language pages if needed
-- Use `aliases` for cross-language wikilink resolution
+- The `language` field is always `en`.
+- All page content — titles, headings, body text, summaries, tags — is written
+  in English.
+- Sources may be in any language; during ingest, translate their content into
+  English before writing pages. Preserve original proper nouns and cite the
+  source as-is.
+- Queries are answered in English.
 
 ---
 
@@ -395,6 +374,6 @@ When answering a query:
 |-------|-------------------|
 | Contradictions between pages | ❌ Error |
 | Quality (empty sections, boilerplate) | ⚠️ Warning |
-| Language consistency (tagged zh but English body) | ⚠️ Warning |
+| Language consistency (non-English body content) | ⚠️ Warning |
 | Drift (not updated in 30+ days) | ℹ️ Info |
 | Knowledge gaps (mentioned but undefined) | ℹ️ Info |

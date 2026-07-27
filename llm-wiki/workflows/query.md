@@ -29,7 +29,7 @@ Read `$WIKI_ROOT/.llm-wiki/index.md`.
 
 This gives you:
 
-- All page slugs, titles, types, languages, tags, and summaries
+- All page slugs, titles, types, tags, and summaries
 - Tag groupings for topical navigation
 - Orphan pages and review queue items
 
@@ -45,27 +45,13 @@ If `$WIKI_ROOT/.llm-wiki/cache/hot-cache.md` exists, read it:
 - It may contain context about what the user was working on recently
 - If the question relates to recent activity, this saves you from re-reading pages
 
-### Step 3: Detect Query Language
-
-Analyze the query text:
-
-- `>70% CJK` → query language is `zh`
-- `>70% Latin` → query language is `en`
-- Otherwise → `bilingual`
-
-### Step 4: Identify Relevant Pages
+### Step 3: Identify Relevant Pages
 
 From the index, find pages relevant to the query:
 
 1. **Tag matching**: Match query terms against tag names
 2. **Title/summary matching**: Search for keywords in titles and summaries
 3. **Semantic matching**: Use your understanding to identify conceptually related pages
-
-**Language preference** (if `prefer_language_match: true` in config):
-
-- Prefer pages whose `language` matches the query language
-- Fall back to pages in the other language if needed
-- Use `aliases` for cross-language matching
 
 **Selection strategy:**
 
@@ -74,7 +60,7 @@ From the index, find pages relevant to the query:
 - Include at least one from each relevant tag cluster
 - If fewer than 3 pages seem relevant, note this as a knowledge gap
 
-### Step 5: Read the Selected Pages
+### Step 4: Read the Selected Pages
 
 Read each selected page in full:
 
@@ -89,7 +75,7 @@ Read each selected page in full:
 - Relationships to other pages (wikilinks)
 - Any contradiction callouts present
 
-### Step 6: Synthesize the Answer
+### Step 5: Synthesize the Answer
 
 Combine evidence from all read pages into a coherent answer:
 
@@ -103,23 +89,23 @@ Combine evidence from all read pages into a coherent answer:
 4. **Contradictions**: If pages disagree, present both sides explicitly
 5. **Knowledge gaps**: Identify what the wiki doesn't cover
 
-### Step 7: Format the Response
+### Step 6: Format the Response
 
 Present the answer in this structure:
 
 ```markdown
-## Answer / 回答
+## Answer
 
 [Direct, concise answer to the question.]
 
-## Evidence / 证据
+## Evidence
 
 | Source Page | Key Point | Relevance | Confidence |
 |-------------|-----------|-----------|------------|
 | [[page-a]] | Key claim from this page | high | high |
 | [[page-b]] | Supporting detail | medium | medium |
 
-## Contradictions / 矛盾
+## Contradictions
 
 *(If applicable)*
 
@@ -131,23 +117,23 @@ Present the answer in this structure:
 >
 > *Recommendation: [which seems more reliable and why]*
 
-## Knowledge Gaps / 知识缺口
+## Knowledge Gaps
 
 - [What the wiki doesn't know about this topic]
 - [Suggestions for sources that could fill the gap]
 
-## Confidence / 置信度: {high|medium|low}
+## Confidence: {high|medium|low}
 
 [1-2 sentence rationale.]
 
-## Pages Consulted / 查阅的页面
+## Pages Consulted
 
 - [[page-a]]
 - [[page-b]]
 - ...
 ```
 
-### Step 8: Offer to Save
+### Step 7: Offer to Save
 
 After presenting the answer:
 
@@ -187,9 +173,9 @@ If the user says yes (or runs `/wiki-save`), follow the `workflows/save-synthesi
 - Narrow with a clarifying question
 - Suggest browsing the index by tag instead: "Here are the tags in the wiki: [list]. Which topic interests you?"
 
-### Question in Different Language Than Wiki Content
+### Question in a Language Other Than English
 
-- If the user asks in Chinese but all relevant pages are in English (or vice versa):
-  - Answer in the user's language
-  - Note: "These pages are in English; I've translated the key points"
-  - Suggest creating bilingual aliases for future queries
+- The wiki is English-only. If the user asks in another language, answer in
+  English unless they explicitly ask for the answer in their language.
+- Match query terms against English titles, tags, and `aliases` when
+  identifying relevant pages.

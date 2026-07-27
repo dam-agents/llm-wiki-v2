@@ -24,9 +24,12 @@ Check `./wiki/.llm-wiki/index.md`. If not found, offer to run init-wiki.sh.
 - If file path: run `~/.claude/skills/llm-wiki/scripts/hash-files.sh <path>`
 - If URL: use WebFetch to retrieve, then compute SHA-256
 
-### 3. Check if already ingested
+### 3. Check state — done or in progress
 
-Look for sentinel: `./wiki/.llm-wiki/cache/ingests/$HASH.done`
+- Sentinel `./wiki/.llm-wiki/cache/ingests/$HASH.done` exists → already ingested, skip.
+- Fresh lock `./wiki/.llm-wiki/cache/ingests/$HASH.lock` (< 60 min old) → another
+  session is ingesting it right now, skip. Otherwise acquire the lock per
+  `workflows/ingest.md` Step 2b before proceeding.
 
 ### 4. Load the full workflow
 

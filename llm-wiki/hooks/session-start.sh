@@ -87,7 +87,7 @@ if [ -f "$INDEX" ]; then
     # Tag cloud
     TAGS=$(grep '^### ' "$INDEX" 2>/dev/null | sed 's/^### //' | sed 's/ ([0-9]* pages)//' || true)
     if [ -n "$TAGS" ]; then
-        echo "### Available Topics / 可用主题"
+        echo "### Available Topics"
         echo "$TAGS" | while read -r tag; do
             echo "- \`$tag\`"
         done
@@ -108,36 +108,51 @@ if [ -f "$REVIEW_JSON" ]; then
     fi
 fi
 
-# Un-ingested sources in .raw/ (hash has no .done sentinel yet)
+# Un-ingested sources in .raw/ (hash has no .done sentinel yet).
+# A fresh .lock directory (< 60 min) means another session is ingesting the
+# source right now — list it as in-progress, never as awaiting ingestion.
 RAW_DIR="./.raw"
 if [ -d "$RAW_DIR" ]; then
     NEW_SOURCES=""
+    IN_PROGRESS=""
     for f in "$RAW_DIR"/*; do
         [ -f "$f" ] || continue
         HASH=$(sha256sum "$f" 2>/dev/null | cut -d' ' -f1)
         [ -z "$HASH" ] && continue
-        if [ ! -f "$WIKI_ROOT/.llm-wiki/cache/ingests/$HASH.done" ]; then
-            NEW_SOURCES="$NEW_SOURCES- \`$f\`
+        [ -f "$WIKI_ROOT/.llm-wiki/cache/ingests/$HASH.done" ] && continue
+        LOCK="$WIKI_ROOT/.llm-wiki/cache/ingests/$HASH.lock"
+        if [ -d "$LOCK" ] && [ -n "$(find "$LOCK" -maxdepth 0 -mmin -60 2>/dev/null)" ]; then
+            IN_PROGRESS="$IN_PROGRESS- \`$f\` (locked since $(cat "$LOCK/started" 2>/dev/null || echo unknown))
 "
+            continue
         fi
+        NEW_SOURCES="$NEW_SOURCES- \`$f\`
+"
     done
     if [ -n "$NEW_SOURCES" ]; then
-        echo "### New Sources Awaiting Ingestion / 待摄取的新来源"
+        echo "### New Sources Awaiting Ingestion"
         printf '%s' "$NEW_SOURCES"
         if [ -f "$AGENT_SENTINEL" ]; then
             echo ""
-            echo "Ingest these now, silently, per the silent-ingestion policy: run the ingest workflow for each and report one summary line."
+            echo "Ingest these now, silently, per the silent-ingestion policy: run the ingest workflow for each (acquire the per-source lock first — workflow Step 2b) and report one summary line."
         else
             echo ""
             echo "Run /wiki-ingest <file> to add them to the wiki."
         fi
         echo ""
     fi
+    if [ -n "$IN_PROGRESS" ]; then
+        echo "### Sources Being Ingested by Another Session"
+        printf '%s' "$IN_PROGRESS"
+        echo ""
+        echo "Do NOT ingest these — another session holds the lock. They will finish (sentinel appears) or the lock goes stale after 60 minutes."
+        echo ""
+    fi
 fi
 
 # Hot cache from previous session
 if [ -f "$HOT_CACHE" ]; then
-    echo "### Context from Previous Session / 上次会话上下文"
+    echo "### Context from Previous Session"
     cat "$HOT_CACHE"
     echo ""
 fi

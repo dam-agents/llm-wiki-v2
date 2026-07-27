@@ -27,7 +27,7 @@ If there was no recent query: ask "What question and answer should I save?"
 
 1. Extract key terms from the question
 2. Convert to lowercase kebab-case
-3. Remove question words (what, how, why, 什么, 怎么, 为什么)
+3. Remove question words (what, how, why)
 4. Keep under 60 characters
 5. Prefix: `synth-{YYYY-MM-DD}-{slug}`
 
@@ -37,11 +37,7 @@ Examples: "What is the difference between RISC-V and ARM?" → `synth-2026-04-28
 
 Read `templates/synthesis.md` from the skill directory.
 
-### Step 4: Determine Language
-
-- `>70% CJK` → `zh`, `>70% Latin` → `en`, otherwise → `bilingual`
-
-### Step 5: Write the Synthesis Page
+### Step 4: Write the Synthesis Page
 
 Create `$WIKI_ROOT/synth-{YYYY-MM-DD}-{slug}.md`:
 
@@ -49,7 +45,7 @@ Create `$WIKI_ROOT/synth-{YYYY-MM-DD}-{slug}.md`:
 ---
 title: "{Descriptive title}"
 type: synthesis
-language: {en|zh|bilingual}
+language: en
 created: YYYY-MM-DD
 modified: YYYY-MM-DD
 tags: [derived from topics]
@@ -60,26 +56,26 @@ confidence: {high|medium|low}
 ---
 ```
 
-Body: Question / 问题 → Answer / 回答 → Evidence / 证据 (table) → Contradictions / 矛盾 → Gaps / 知识缺口 → Confidence / 置信度
+Body: Question → Answer → Evidence (table) → Contradictions → Gaps → Confidence
 
-### Step 6: Cross-Link
+### Step 5: Cross-Link
 
 1. Add [[wikilinks]] from synthesis to all `based_on` pages
 2. Add backlinks from source pages where the synthesis adds insight
 3. Link to any mentioned concepts that have wiki pages
 
-### Step 7: Update Graph
+### Step 6: Update Graph
 
 Add node + edges to `$WIKI_ROOT/.llm-wiki/graph.json`.
 
-### Step 8: Regenerate Index
+### Step 7: Regenerate Index
 
-Follow `workflows/ingest.md` Step 15 index regeneration procedure.
+Follow `workflows/ingest.md` Step 14 index regeneration procedure.
 
-### Step 9: Confirm
+### Step 8: Confirm
 
 ```
-# Synthesis Saved / 综合页面已保存
+# Synthesis Saved
 **File:** synth-{date}-{slug}.md
 **Title:** {title}
 **Based on:** {N} wiki pages

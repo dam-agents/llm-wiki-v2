@@ -17,25 +17,25 @@ HOT_CACHE="$WIKI_ROOT/.llm-wiki/cache/hot-cache.md"
 NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 cat > "$HOT_CACHE" << HOTEOF
-# Hot Cache / 热缓存
+# Hot Cache
 **Last session:** $NOW
 
-## Recent Activity / 最近活动
+## Recent Activity
 <!-- Populated during session by /wiki operations -->
 
-## Pages Read / 已读页面
+## Pages Read
 <!-- Pages consulted during queries -->
 
-## Pages Written / 已写页面
+## Pages Written
 <!-- Pages created or updated -->
 
-## Queries Asked / 查询记录
+## Queries Asked
 <!-- Queries asked via /wiki-query -->
 
-## Pending / 待处理
+## Pending
 <!-- Items needing follow-up next session -->
 
-## Notes / 备注
+## Notes
 <!-- Free-form notes -->
 HOTEOF
 

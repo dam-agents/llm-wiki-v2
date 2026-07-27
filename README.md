@@ -215,7 +215,7 @@ File: `synth-YYYY-MM-DD-{slug}.md`
 ## Bilingual Support
 
 - **Auto-detection**: CJK character ratio determines `zh` / `en` / `bilingual`
-- **Page titles**: `"English / 中文"` format for bilingual pages
+- **Page titles**: `"English"` format for bilingual pages
 - **Cross-language wikilinks**: `aliases` field provides translations for link resolution
 - **Query matching**: Prefers same-language pages, falls back across languages
 
