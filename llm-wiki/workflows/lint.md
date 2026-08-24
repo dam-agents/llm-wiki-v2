@@ -92,10 +92,12 @@ scripts/check-stale.sh "$WIKI_ROOT"
 
 The LLM performs a quick scan (no page content reads needed):
 
-1. List all `*.md` files in `$WIKI_ROOT/` (excluding `.llm-wiki/` and `index.md`):
+1. List all `*.md` files in `$WIKI_ROOT/` (excluding `.llm-wiki/`, `index.md`,
+   and `USAGE_GUIDE.md` — the last two are not pages):
 
    ```bash
-   find "$WIKI_ROOT" -maxdepth 1 -name "*.md" ! -path "*/.llm-wiki/*" ! -name "index.md"
+   find "$WIKI_ROOT" -maxdepth 1 -name "*.md" ! -path "*/.llm-wiki/*" \
+       ! -name "index.md" ! -name "USAGE_GUIDE.md"
    ```
 
 2. Check naming rules:
@@ -109,11 +111,25 @@ The LLM performs a quick scan (no page content reads needed):
 
 **Severity:** ⚠️ WARNING — inconsistent naming makes the wiki harder to navigate programmatically
 
+### Step Q6: Usage Guide Check
+
+```bash
+wc -c "$WIKI_ROOT/USAGE_GUIDE.md" 2>/dev/null || echo "MISSING: USAGE_GUIDE.md"
+grep -n '{[A-Za-z]' "$WIKI_ROOT/USAGE_GUIDE.md"       # leftover placeholders
+```
+
+**What it checks:** the guide exists, is within the size cap in
+`WIKI_SCHEMA.md`, has no leftover placeholders, and still describes the wiki
+the index shows.
+
+**Severity:** ⚠️ WARNING — the wiki is healthy either way, but a consumer
+reading the guide will be misled. Fix by refreshing it (`ingest.md` Step 14b).
+
 ---
 
 ## Quick Lint Report
 
-After running Q1-Q5, present:
+After running Q1-Q6, present:
 
 ```
 # Wiki Health Report
@@ -130,6 +146,7 @@ After running Q1-Q5, present:
 | Orphan Pages | ... |
 | Stale Index | ... |
 | Naming | ... |
+| Usage Guide | ... |
 
 ## Summary
 - {N} errors, {N} warnings
@@ -154,7 +171,7 @@ Full lint requires the LLM to read page content and reason about it. This has to
 
 ### Step F1: Run Quick Lint First
 
-Always run Q1-Q5 before full lint. If there are errors, ask the user if they want to proceed anyway (semantic checks may be unreliable on structurally broken pages).
+Always run Q1-Q6 before full lint. If there are errors, ask the user if they want to proceed anyway (semantic checks may be unreliable on structurally broken pages).
 
 ### Step F2: Contradiction Sweep
 
@@ -309,6 +326,8 @@ Add to `$WIKI_ROOT/.llm-wiki/review.json`.
 ### Newly Initialized Wiki (0 Pages)
 
 - Quick lint: all checks pass (nothing to check)
+- Q6 still applies — onboarding writes the usage guide even for an empty
+  wiki; if it is missing, write it (`ingest.md` Step 14b).
 - Report: "Wiki is empty — nothing to lint. Start by ingesting sources with /wiki-ingest."
 
 ### Contradiction That Can't Be Resolved

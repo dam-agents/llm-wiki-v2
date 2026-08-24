@@ -27,6 +27,7 @@ When the user asks a factual, conceptual, or knowledge-based question, **always 
 ### 4. After modifying wiki pages
 
 - Regenerate the index (read all pages, extract frontmatter, write to `.llm-wiki/index.md`)
+- Refresh `./wiki/USAGE_GUIDE.md` (skill workflow `workflows/ingest.md` Step 14b)
 - Run `~/.claude/skills/llm-wiki/scripts/` checks if needed
 
 ## Key Paths
@@ -35,6 +36,7 @@ When the user asks a factual, conceptual, or knowledge-based question, **always 
 |------|---------|
 | `./wiki/` | Wiki root — all markdown pages |
 | `./wiki/.llm-wiki/index.md` | Auto-generated page catalog |
+| `./wiki/USAGE_GUIDE.md` | How to use this wiki, for a consuming agent |
 | `./wiki/.llm-wiki/config.md` | User preferences |
 | `./wiki/.llm-wiki/review.json` | Pending review items |
 | `./.raw/` | Source documents for ingestion |

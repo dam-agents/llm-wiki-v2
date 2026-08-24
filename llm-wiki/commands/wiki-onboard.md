@@ -26,6 +26,7 @@ and purpose/topics. Nothing technical.
   `require_review: false`)
 - Offer: git remote for the wiki, a maintenance schedule, first sources (or
   the bundled demo)
+- Write `./wiki/USAGE_GUIDE.md` (skill workflow `workflows/ingest.md` Step 14b)
 - Write the `./wiki/.llm-wiki/onboarded` sentinel
 
 ### Full workflow

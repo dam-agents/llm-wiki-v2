@@ -298,7 +298,8 @@ For each contradiction found in Phase 1:
 
 **This is a programmatic operation — do not edit index.md by hand.**
 
-1. Read all `*.md` files in `$WIKI_ROOT/` (excluding `.llm-wiki/` and `index.md`)
+1. Read all `*.md` files in `$WIKI_ROOT/` (excluding `.llm-wiki/`, `index.md`,
+   and `USAGE_GUIDE.md` — the last two are not pages)
 2. Also read from `$WIKI_ROOT/topics/` if it exists
 3. Extract frontmatter from each page (between `---` delimiters)
 4. For each page, collect: slug, title, type, language, tags, summary, modified
@@ -309,6 +310,33 @@ For each contradiction found in Phase 1:
    - Orphan Pages section (run `scripts/find-orphans.sh`)
    - Review Queue section (from `review.json`)
 6. Write to `$WIKI_ROOT/.llm-wiki/index.md`
+
+### Step 14b: Refresh the Usage Guide
+
+`USAGE_GUIDE.md` is what a consuming agent reads when this wiki is shared as a
+read-only knowledge base. It is derived from the wiki, so it goes stale with
+the index — rewrite it here. Format and rules: `WIKI_SCHEMA.md`,
+"`USAGE_GUIDE.md` Format".
+
+1. Read `.llm-wiki/config.md` (name, purpose), the index you just wrote (the
+   page types and topic clusters that actually exist), `ls -1 "$WIKI_ROOT"`
+   (real layout), and the current guide if there is one.
+2. Fill `templates/usage-guide.md`. Every section is a placeholder to write
+   from that state. Preserve any wording a human added; refresh only what went
+   stale.
+3. Verify:
+
+   ```bash
+   wc -c "$WIKI_ROOT/USAGE_GUIDE.md"                # ≤ 8000
+   head -1 "$WIKI_ROOT/USAGE_GUIDE.md"              # not '---'
+   grep -n '{[A-Za-z]' "$WIKI_ROOT/USAGE_GUIDE.md"  # no placeholders left
+   ```
+
+   Confirm every path and page type it names exists. Over the cap: compress,
+   cutting from the tail — never from layout or navigation.
+
+This is the last content step and never a gate: if it fails, still finish
+Step 15 and note the miss in the summary.
 
 ### Step 15: Write Sentinel + Release Lock + Update Manifest
 
@@ -366,6 +394,9 @@ Present a clean summary to the user:
 
 ## Contradictions
 {count} new contradictions flagged — run /wiki-lint to review
+
+## Maintenance
+Index regenerated, usage guide refreshed ({N} bytes).
 
 ## Next Steps
 - Run /wiki-lint to check health

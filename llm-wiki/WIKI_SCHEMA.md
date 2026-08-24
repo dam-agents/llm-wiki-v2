@@ -322,6 +322,39 @@ The index at `.llm-wiki/index.md` is **auto-generated** and follows this format:
 
 ---
 
+## Non-Page Files at the Wiki Root
+
+Two files sit beside the pages without being pages. They carry no frontmatter,
+get no slug, and are excluded from the index, from frontmatter validation, and
+from the orphan, broken-link, and naming checks:
+
+| File | What it is |
+|------|-----------|
+| `index.md` | Symlink to `.llm-wiki/index.md` — the generated catalog (format above) |
+| `USAGE_GUIDE.md` | How to use this wiki, for an agent that has never seen it |
+
+### `USAGE_GUIDE.md` Format
+
+A platform sharing this wiki as a read-only knowledge base surfaces the
+**first 8,000 characters of `USAGE_GUIDE.md`, verbatim** to the consuming
+agent. Without the file it gets a generic fallback and cannot navigate the
+wiki — it never learns that `index.md` is the catalog or that `[[slug]]`
+resolves to `slug.md`.
+
+| Rule | Value |
+|------|-------|
+| Path | `$WIKI_ROOT/USAGE_GUIDE.md` — never under `.llm-wiki/` |
+| Size | ≤ 8,000 bytes; aim for 2,000–6,000 |
+| Frontmatter | none — the file is surfaced verbatim |
+| Sections | what the wiki covers · layout and entry point · how to find something · conventions · limits |
+| Derived from | `.llm-wiki/config.md` and `.llm-wiki/index.md`; no counts or timestamps, which drift |
+
+Written at onboarding, rewritten whenever pages change — the same trigger as
+the index. Procedure: `workflows/ingest.md` Step 14b. Skeleton:
+`templates/usage-guide.md`.
+
+---
+
 ## Naming Conventions
 
 | Element | Convention | Example |
@@ -367,6 +400,7 @@ The wiki is English-only:
 | Broken wikilinks | `find-broken-links.sh` | ❌ Error |
 | Orphan pages | `find-orphans.sh` | ⚠️ Warning |
 | Stale index | `check-stale.sh` | ⚠️ Warning |
+| Usage guide missing, oversized, or out of sync | `wc -c` (lint step Q6) | ⚠️ Warning |
 
 ### Semantic (Full Lint — LLM-intensive, token cost)
 

@@ -23,9 +23,11 @@ if [ ! -d "$WIKI_ROOT" ]; then
     exit 1
 fi
 
-# Compute live hash from all page frontmatter (excluding .llm-wiki/ and index.md itself)
-# We hash the concatenation of all YAML frontmatter blocks
-LIVE_HASH=$(find "$WIKI_ROOT" -maxdepth 1 -name "*.md" ! -name "index.md" -exec sed -n '/^---$/,/^---$/p' {} \; 2>/dev/null | sha256sum | cut -d' ' -f1)
+# Compute live hash from the concatenated frontmatter of all pages.
+# index.md and USAGE_GUIDE.md are not pages — see WIKI_SCHEMA.md.
+LIVE_HASH=$(find "$WIKI_ROOT" -maxdepth 1 -name "*.md" \
+    ! -name "index.md" ! -name "USAGE_GUIDE.md" \
+    -exec sed -n '/^---$/,/^---$/p' {} \; 2>/dev/null | sha256sum | cut -d' ' -f1)
 
 
 if [ ! -f "$INDEX_HASH_FILE" ]; then

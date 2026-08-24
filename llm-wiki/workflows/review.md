@@ -46,6 +46,11 @@ For each item:
 
 Move resolved items to `resolved` array; write back.
 
+### Step 5b: Refresh Derived Files
+
+If Step 4 changed any page, regenerate the index and refresh the usage guide
+(`workflows/ingest.md`, Steps 14 and 14b).
+
 ### Step 6: Show Summary
 
 ```

@@ -44,6 +44,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history: the bootstrap.sh test pushes this checkout into a
+          # local bare repo, and a shallow clone cannot be pushed
+          # ("shallow update not allowed").
+          fetch-depth: 0
       - name: Run integration tests
         run: |
           set -e
@@ -85,6 +90,14 @@ jobs:
           This links back to [[test-concept]].
           EOF
 
+          # A non-page USAGE_GUIDE.md must not trip any page check below.
+          cat > ./wiki/USAGE_GUIDE.md << 'EOF'
+          # Test Wiki — Knowledge Base Guide
+
+          Start at `index.md`. A link like [[example-page-that-does-not-exist]]
+          resolves to that slug plus `.md` in the wiki root.
+          EOF
+
           echo "=== Testing validate-frontmatter.sh ==="
           bash "$GITHUB_WORKSPACE/llm-wiki/scripts/validate-frontmatter.sh" ./wiki
 
@@ -112,7 +125,7 @@ jobs:
           echo "=== Testing bootstrap.sh (local bare remote, isolated HOME) ==="
           BARE="$(mktemp -d)/origin.git"
           git init --bare -b main "$BARE"
-          git -C "$GITHUB_WORKSPACE" push -q "$BARE" HEAD:main
+          git -C "$GITHUB_WORKSPACE" push -q "$BARE" HEAD:refs/heads/main
           BOOT_HOME="$(mktemp -d)"
           # Installs into $HOME/.llm-wiki-agent; must NOT touch the CWD
           HOME="$BOOT_HOME" LLM_WIKI_REPO="$BARE" bash "$GITHUB_WORKSPACE/bootstrap.sh"

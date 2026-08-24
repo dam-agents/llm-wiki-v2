@@ -13,7 +13,8 @@
 List all pages and extract node/edge data:
 
 ```bash
-find "$WIKI_ROOT" -maxdepth 1 -name "*.md" ! -path "*/.llm-wiki/*" ! -name "index.md"
+find "$WIKI_ROOT" -maxdepth 1 -name "*.md" ! -path "*/.llm-wiki/*" \
+    ! -name "index.md" ! -name "USAGE_GUIDE.md"
 ```
 
 Build structure:
