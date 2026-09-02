@@ -181,6 +181,14 @@ summary: "Another test page"
 This links back to [[test-concept]].
 EOF
 
+    # A non-page USAGE_GUIDE.md must not trip any page check below.
+    cat > ./wiki/USAGE_GUIDE.md << 'EOF'
+# Test Wiki — Knowledge Base Guide
+
+Start at `index.md`. A link like [[example-page-that-does-not-exist]] resolves
+to that slug plus `.md` in the wiki root.
+EOF
+
     success "  test pages created"
 
     # Test validate-frontmatter.sh
@@ -269,7 +277,7 @@ EOF
         BARE="$(mktemp -d)/origin.git"
         BOOT_HOME="$(mktemp -d)"
         git init --bare -b main -q "$BARE"
-        git -C "$PROJECT_ROOT" push -q "$BARE" HEAD:main
+        git -C "$PROJECT_ROOT" push -q "$BARE" HEAD:refs/heads/main
         # Installs into $HOME/.llm-wiki-agent and symlinks into ~/.claude;
         # must never touch the working directory.
         if HOME="$BOOT_HOME" LLM_WIKI_REPO="$BARE" bash "$PROJECT_ROOT/bootstrap.sh" >/dev/null \

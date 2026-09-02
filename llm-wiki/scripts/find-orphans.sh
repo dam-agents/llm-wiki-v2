@@ -21,10 +21,14 @@ if [ ! -d "$WIKI_ROOT" ]; then
 fi
 
 # Collect all page slugs (filenames without .md) in wiki root and topics/
-SLUGS=$(find "$WIKI_ROOT" -maxdepth 1 -name "*.md" ! -path "*/.llm-wiki/*" ! -name "index.md" -exec basename {} .md \; 2>/dev/null)
+# index.md and USAGE_GUIDE.md are not pages — see WIKI_SCHEMA.md.
+# Skipped as a link source too: its wikilinks are syntax examples.
+SLUGS=$(find "$WIKI_ROOT" -maxdepth 1 -name "*.md" ! -path "*/.llm-wiki/*" \
+    ! -name "index.md" ! -name "USAGE_GUIDE.md" -exec basename {} .md \; 2>/dev/null)
 
 # Collect all wikilink targets across all wiki pages
-ALL_LINKS=$(find "$WIKI_ROOT" -maxdepth 1 -name "*.md" ! -path "*/.llm-wiki/*" -exec sed -n 's/.*\[\[\([^]|#]*\)\(|[^]]*\)*\]\].*/\1/p' {} \; 2>/dev/null | sort -u)
+ALL_LINKS=$(find "$WIKI_ROOT" -maxdepth 1 -name "*.md" ! -path "*/.llm-wiki/*" \
+    ! -name "USAGE_GUIDE.md" -exec sed -n 's/.*\[\[\([^]|#]*\)\(|[^]]*\)*\]\].*/\1/p' {} \; 2>/dev/null | sort -u)
 
 # For each slug, check if it appears as a link target
 ORPHANS_FOUND=0

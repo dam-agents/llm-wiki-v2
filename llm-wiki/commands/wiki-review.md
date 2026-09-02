@@ -14,4 +14,4 @@ Use `Skill("llm-wiki")` → `workflows/review.md` for the full procedure:
 2. For each item, present the issue and relevant pages
 3. Let the user decide: resolve, defer, or escalate
 4. Update `review.json` accordingly
-5. If changes were made, regenerate the index
+5. If changes were made, regenerate the index and refresh `./wiki/USAGE_GUIDE.md`

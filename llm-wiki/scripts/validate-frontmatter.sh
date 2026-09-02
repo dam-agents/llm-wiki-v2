@@ -97,10 +97,12 @@ check_page() {
     done
 }
 
-# Check all wiki pages
+# Check all wiki pages.
+# index.md and USAGE_GUIDE.md are not pages — see WIKI_SCHEMA.md.
 while IFS= read -r -d '' file; do
     check_page "$file"
-done < <(find "$WIKI_ROOT" -maxdepth 1 -name "*.md" ! -path "*/.llm-wiki/*" ! -name "index.md" -print0 2>/dev/null)
+done < <(find "$WIKI_ROOT" -maxdepth 1 -name "*.md" ! -path "*/.llm-wiki/*" \
+    ! -name "index.md" ! -name "USAGE_GUIDE.md" -print0 2>/dev/null)
 
 
 if [ "$ISSUES_FOUND" -eq 0 ]; then

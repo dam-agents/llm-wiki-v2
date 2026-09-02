@@ -39,8 +39,11 @@ INDEX="$WIKI_ROOT/.llm-wiki/index.md"
 STATE_HASH_FILE="$WIKI_ROOT/.llm-wiki/cache/state-hash.txt"
 REVIEW_JSON="$WIKI_ROOT/.llm-wiki/review.json"
 
-# Compute current state hash from all wiki pages
-CURRENT_HASH=$(find "$WIKI_ROOT" -maxdepth 1 -name "*.md" ! -name "index.md" -exec sha256sum {} \; 2>/dev/null | sort | sha256sum | cut -d' ' -f1)
+# Compute current state hash from all wiki pages. index.md and USAGE_GUIDE.md
+# are derived — hashing them would report a refresh as an external change.
+CURRENT_HASH=$(find "$WIKI_ROOT" -maxdepth 1 -name "*.md" \
+    ! -name "index.md" ! -name "USAGE_GUIDE.md" \
+    -exec sha256sum {} \; 2>/dev/null | sort | sha256sum | cut -d' ' -f1)
 
 cat << HEADER
 ---

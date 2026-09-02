@@ -16,6 +16,8 @@ Run these scripts from `~/.claude/skills/llm-wiki/scripts/`:
 - `find-orphans.sh` — Pages with no incoming links
 - `check-stale.sh` — Index freshness
 
+Then check the usage guide (`workflows/lint.md` step Q6).
+
 ## Full Mode (LLM semantic analysis)
 
 Use `Skill("llm-wiki")` → `workflows/lint.md` for:

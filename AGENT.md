@@ -130,7 +130,9 @@ other platforms):
 ## Maintenance
 
 - After modifying any wiki page, regenerate `.llm-wiki/index.md` (never edit
-  it by hand).
+  it by hand) and refresh `./wiki/USAGE_GUIDE.md` — the guide a consuming
+  agent reads when the wiki is shared (skill workflow `workflows/ingest.md`
+  Steps 14 and 14b).
 - Honor any maintenance schedule set up during onboarding (periodic
   `/wiki-lint --quick` and ingestion sweeps).
 - The wiki may be its own git repository with a remote. After substantive

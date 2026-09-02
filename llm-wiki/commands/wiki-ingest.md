@@ -38,4 +38,4 @@ Use `Skill("llm-wiki")` to load the complete ingestion procedure from `workflows
 - Concept/person/article extraction
 - Contradiction detection
 - Two-phase generation with user review checkpoints
-- Index regeneration
+- Index regeneration and `USAGE_GUIDE.md` refresh

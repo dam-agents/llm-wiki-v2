@@ -72,6 +72,11 @@ Add node + edges to `$WIKI_ROOT/.llm-wiki/graph.json`.
 
 Follow `workflows/ingest.md` Step 14 index regeneration procedure.
 
+### Step 7b: Refresh the Usage Guide
+
+Refresh `$WIKI_ROOT/USAGE_GUIDE.md` (`workflows/ingest.md` Step 14b) — the
+wiki now has synthesis pages.
+
 ### Step 8: Confirm
 
 ```

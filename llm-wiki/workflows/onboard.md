@@ -127,7 +127,13 @@ try it out."
 - If they have nothing yet: fine — tell them the wiki fills up whenever they
   hand you documents.
 
-## Step 7: Write the Sentinel
+## Step 7: Write the Usage Guide
+
+Write `./wiki/USAGE_GUIDE.md` (procedure: `workflows/ingest.md` Step 14b),
+from the name and purpose collected in Step 1 and whatever Step 6 ingested.
+Part of setup — do not announce it separately.
+
+## Step 8: Write the Sentinel
 
 ```bash
 {
@@ -136,9 +142,10 @@ try it out."
 } > ./wiki/.llm-wiki/onboarded
 ```
 
-If the wiki is git-backed (Step 4), commit the sentinel and config too.
+If the wiki is git-backed (Step 4), commit the sentinel, the config, and the
+usage guide too.
 
-## Step 8: Close
+## Step 9: Close
 
 One short closing message:
 

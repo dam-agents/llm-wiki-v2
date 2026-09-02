@@ -168,6 +168,7 @@ wiki/
 │   │   ├── state-hash.txt          Detects external modifications
 │   │   └── ingests/{sha256}.done   Sentinel files (idempotent ingestion)
 │   └── inbox/{sha256}-analysis.md  Phase 1 ingest analyses
+├── USAGE_GUIDE.md                  How to use this wiki, for a consuming agent
 ├── transformer.md                  Concept page
 ├── 2026-04-28-weekly-notes.md      Article page
 ├── alan-turing.md                  Person page
@@ -236,6 +237,7 @@ llm-wiki/
 │   ├── wiki-graph.md                /wiki-graph
 │   └── wiki-review.md               /wiki-review
 ├── templates/                       Page templates (article, concept, person, synthesis)
+│   └── usage-guide.md               Skeleton for wiki/USAGE_GUIDE.md
 ├── scripts/                         Deterministic bash operations
 │   ├── setup-project.sh             ★ One-stop project setup
 │   ├── init-wiki.sh                 Bootstrap new wiki directory
