@@ -95,7 +95,7 @@ ingest fails partway (see Edge Cases).
 Read these files to understand the current state of the wiki:
 
 1. **`WIKI_SCHEMA.md`** (skill-level) — page types, field definitions, conventions
-   - Path: `~/.claude/skills/llm-wiki/WIKI_SCHEMA.md`
+   - Path: `WIKI_SCHEMA.md` in the skill directory (`~/.agents/skills/llm-wiki/`, or `~/.claude/skills/llm-wiki/` for a copy install)
 
 2. **`.llm-wiki/index.md`** (project-level) — all existing pages, tags, summaries
    - Path: `$WIKI_ROOT/.llm-wiki/index.md`

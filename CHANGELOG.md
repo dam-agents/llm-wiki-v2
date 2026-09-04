@@ -7,7 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Agent-mode install (`bootstrap.sh` / `scripts/agent-install.sh`) now wires
+  every installed harness, not only Claude Code: the skill lands in
+  `~/.agents/skills/llm-wiki` (agentskills.io, read by all harnesses) and the
+  manual + slash commands are linked into Claude Code (`~/.claude`), Codex
+  (`$CODEX_HOME/AGENTS.md`, `$CODEX_HOME/prompts` as `/prompts:wiki-…`), Pi
+  (`~/.pi/agent/{AGENTS.md,prompts,skills}`), and Bob (`~/.bob/rules`,
+  `~/.bob/skills`). Selection: `LLM_WIKI_HARNESS` / `--harness`, else the
+  harness CLIs found on `PATH`, else `claude-code`.
+- `AGENT.md` Rule 0a: on harnesses without session hooks the agent runs
+  `hooks/session-start.sh` itself at session start.
+- `uninstall.sh` removes the links from every harness.
+
 ### Changed
+
+- Skill, command, and workflow docs refer to the skill directory
+  (`~/.agents/skills/llm-wiki`) instead of hardcoding `~/.claude/skills`, and
+  `Skill("llm-wiki")` is described as the Claude Code way to load the skill.
 
 - The wiki is now English-only: removed bilingual (en/zh) support, CJK
   language detection, and cross-language query matching. The `language`

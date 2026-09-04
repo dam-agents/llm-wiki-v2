@@ -11,7 +11,7 @@ The user ran `/wiki-ingest $ARGUMENTS`.
 
 - Wiki root: `./wiki/` (or `$LLM_WIKI_ROOT`)
 - Source files: `./.raw/`
-- Skill directory: `~/.claude/skills/llm-wiki/`
+- Skill directory: `~/.agents/skills/llm-wiki/` (or `~/.claude/skills/llm-wiki/` for a copy install)
 
 ## Procedure
 
@@ -21,7 +21,7 @@ Check `./wiki/.llm-wiki/index.md`. If not found, offer to run init-wiki.sh.
 
 ### 2. Identify and hash the source
 
-- If file path: run `~/.claude/skills/llm-wiki/scripts/hash-files.sh <path>`
+- If file path: run `scripts/hash-files.sh <path>` from the skill directory
 - If URL: use WebFetch to retrieve, then compute SHA-256
 
 ### 3. Check state — done or in progress
@@ -33,7 +33,7 @@ Check `./wiki/.llm-wiki/index.md`. If not found, offer to run init-wiki.sh.
 
 ### 4. Load the full workflow
 
-Use `Skill("llm-wiki")` to load the complete ingestion procedure from `workflows/ingest.md`, which covers:
+Use the skill (`Skill("llm-wiki")` on Claude Code; otherwise read `SKILL.md` in the skill directory) to load the complete ingestion procedure from `workflows/ingest.md`, which covers:
 
 - Concept/person/article extraction
 - Contradiction detection

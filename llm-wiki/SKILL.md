@@ -5,7 +5,7 @@ description: Build and maintain a persistent, interlinked wiki from source docum
 
 # LLM Wiki — Compounding Knowledge Base
 
-A Claude Code skill for building and maintaining a persistent, interlinked wiki from source documents. Knowledge is compiled once and kept current, not re-derived on every query.
+An agent skill (agentskills.io layout — Claude Code, Codex, Pi, Bob) for building and maintaining a persistent, interlinked wiki from source documents. Knowledge is compiled once and kept current, not re-derived on every query.
 
 Based on Andrej Karpathy's [LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f).
 
@@ -43,13 +43,13 @@ You should **proactively** use the wiki without waiting for explicit `/wiki*` co
 
 ### When to use the full skill
 
-Use `Skill("llm-wiki")` when you need deep wiki operations (ingestion, full lint, graph, review queue). The skill gives you access to all `workflows/` and `scripts/`.
+Load the full skill when you need deep wiki operations (ingestion, full lint, graph, review queue): `Skill("llm-wiki")` on Claude Code, or read this `SKILL.md` and the referenced `workflows/` files directly on any other harness. The skill gives you access to all `workflows/` and `scripts/`.
 
 ## Slash Commands
 
-The skill provides 8 real slash commands. Each is a `.md` file in `commands/` that gets installed to `~/.claude/commands/` by `install.sh` (or symlinked by `scripts/agent-install.sh` in agent mode). Claude Code auto-discovers them at startup.
+The skill provides 8 real slash commands. Each is a `.md` file in `commands/` that `scripts/agent-install.sh` symlinks into every installed harness's command directory (`~/.claude/commands/` for Claude Code, `~/.codex/prompts/` for Codex — where they appear as `/prompts:wiki-…`, `~/.pi/agent/prompts/` for Pi; Bob has no command files and reads the mapping from `AGENT.md`). `install.sh` copies them for a Claude-Code-only install.
 
-When you are invoked (via `Skill("llm-wiki")`), determine which workflow to follow based on the command the user ran:
+When you are invoked (via `Skill("llm-wiki")`, or because the user ran one of these commands on a harness without a Skill tool), determine which workflow to follow based on the command the user ran:
 
 | Command | Command file | What it does | Workflow file |
 |---------|-------------|-------------|---------------|
@@ -64,7 +64,7 @@ When you are invoked (via `Skill("llm-wiki")`), determine which workflow to foll
 
 ## How to Use This Skill
 
-When you are invoked (via `Skill("llm-wiki")`), determine which workflow to follow based on the command the user ran. Then:
+When you are invoked, determine which workflow to follow based on the command the user ran. Then:
 
 1. **Read the corresponding workflow file** (listed in the table above)
 2. **Follow it step by step** — the workflow file contains exact procedures
@@ -141,8 +141,9 @@ When this machine is a dedicated LLM Wiki agent (sentinel
 `$HOME/.llm-wiki-installed` exists, created by `scripts/agent-install.sh` —
 see `INSTALLATION.md` in the repo root):
 
-- The global operating manual is `AGENT.md`, symlinked to
-  `~/.claude/CLAUDE.md`. Its rules (wiki-first answering, silent ingestion,
+- The global operating manual is `AGENT.md`, symlinked into each harness's
+  global-instructions file (`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`,
+  `~/.pi/agent/AGENTS.md`, `~/.bob/rules/llm-wiki.md`). Its rules (wiki-first answering, silent ingestion,
   contextual hints) apply to every session.
 - If `./wiki/.llm-wiki/onboarded` is missing, run `/wiki-onboard`
   (`workflows/onboard.md`) before anything else.
