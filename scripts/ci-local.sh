@@ -254,6 +254,7 @@ EOF
     echo "--- Testing agent-install.sh (isolated HOME) ---"
     FAKE_HOME="$(mktemp -d)"
     if HOME="$FAKE_HOME" bash "$PROJECT_ROOT/llm-wiki/scripts/agent-install.sh" \
+        && [ -L "$FAKE_HOME/.agents/skills/llm-wiki" ] \
         && [ -L "$FAKE_HOME/.claude/skills/llm-wiki" ] \
         && [ -L "$FAKE_HOME/.claude/CLAUDE.md" ] \
         && [ -L "$FAKE_HOME/.claude/commands/wiki-onboard.md" ] \
@@ -266,6 +267,31 @@ EOF
         INTEGRATION_OK=false
     fi
     rm -rf "$FAKE_HOME"
+
+    # Test agent-install.sh for the non-Claude harnesses (isolated HOMEs)
+    echo ""
+    echo "--- Testing agent-install.sh for codex, pi, bob (isolated HOMEs) ---"
+    for h in codex pi bob; do
+        FAKE_HOME="$(mktemp -d)"
+        case "$h" in
+            codex) manual=".codex/AGENTS.md" ;;
+            pi)    manual=".pi/agent/AGENTS.md" ;;
+            bob)   manual=".bob/rules/llm-wiki.md" ;;
+        esac
+        if HOME="$FAKE_HOME" LLM_WIKI_HARNESS="$h" bash "$PROJECT_ROOT/llm-wiki/scripts/agent-install.sh" >/dev/null \
+            && [ -L "$FAKE_HOME/.agents/skills/llm-wiki" ] \
+            && [ -L "$FAKE_HOME/$manual" ] \
+            && [ ! -e "$FAKE_HOME/.claude/CLAUDE.md" ] \
+            && HOME="$FAKE_HOME" bash "$PROJECT_ROOT/uninstall.sh" --force >/dev/null \
+            && [ ! -e "$FAKE_HOME/$manual" ] \
+            && [ ! -e "$FAKE_HOME/.agents/skills/llm-wiki" ]; then
+            success "  agent-install.sh --harness $h (install + uninstall)"
+        else
+            error "  agent-install.sh --harness $h failed"
+            INTEGRATION_OK=false
+        fi
+        rm -rf "$FAKE_HOME"
+    done
 
     # Test bootstrap.sh end-to-end against a local bare remote.
     # Requires the agent-mode files to be committed at HEAD with no pending

@@ -113,6 +113,7 @@ jobs:
           echo "=== Testing agent-install.sh (isolated HOME) ==="
           FAKE_HOME="$(mktemp -d)"
           HOME="$FAKE_HOME" bash "$GITHUB_WORKSPACE/llm-wiki/scripts/agent-install.sh"
+          test -L "$FAKE_HOME/.agents/skills/llm-wiki"
           test -L "$FAKE_HOME/.claude/skills/llm-wiki"
           test -L "$FAKE_HOME/.claude/CLAUDE.md"
           test -L "$FAKE_HOME/.claude/commands/wiki-onboard.md"
@@ -121,6 +122,25 @@ jobs:
           # Idempotent re-run must be a no-op
           HOME="$FAKE_HOME" bash "$GITHUB_WORKSPACE/llm-wiki/scripts/agent-install.sh" | grep -q "already installed"
           rm -rf "$FAKE_HOME"
+
+          echo "=== Testing agent-install.sh for codex, pi, bob (isolated HOMEs) ==="
+          for h in codex pi bob; do
+            FAKE_HOME="$(mktemp -d)"
+            HOME="$FAKE_HOME" LLM_WIKI_HARNESS="$h" bash "$GITHUB_WORKSPACE/llm-wiki/scripts/agent-install.sh"
+            test -L "$FAKE_HOME/.agents/skills/llm-wiki"
+            test ! -e "$FAKE_HOME/.claude/CLAUDE.md"
+            case "$h" in
+              codex) test -L "$FAKE_HOME/.codex/AGENTS.md"; test -L "$FAKE_HOME/.codex/prompts/wiki-onboard.md" ;;
+              pi)    test -L "$FAKE_HOME/.pi/agent/AGENTS.md"; test -L "$FAKE_HOME/.pi/agent/prompts/wiki-onboard.md"; test -L "$FAKE_HOME/.pi/agent/skills/llm-wiki" ;;
+              bob)   test -L "$FAKE_HOME/.bob/rules/llm-wiki.md"; test -L "$FAKE_HOME/.bob/skills/llm-wiki" ;;
+            esac
+            HOME="$FAKE_HOME" bash "$GITHUB_WORKSPACE/uninstall.sh" --force
+            test ! -e "$FAKE_HOME/.agents/skills/llm-wiki"
+            test ! -e "$FAKE_HOME/.codex/AGENTS.md"
+            test ! -e "$FAKE_HOME/.pi/agent/AGENTS.md"
+            test ! -e "$FAKE_HOME/.bob/rules/llm-wiki.md"
+            rm -rf "$FAKE_HOME"
+          done
 
           echo "=== Testing bootstrap.sh (local bare remote, isolated HOME) ==="
           BARE="$(mktemp -d)/origin.git"

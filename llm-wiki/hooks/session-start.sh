@@ -49,7 +49,7 @@ cat << HEADER
 ---
 ## LLM Wiki — Session Context
 **Wiki root:** $WIKI_ROOT
-**Skill:** Use \`Skill("llm-wiki")\` to load full wiki capabilities
+**Skill:** \`~/.agents/skills/llm-wiki/\` — load it with \`Skill("llm-wiki")\` on Claude Code, or read its SKILL.md on any other harness
 ---
 
 HEADER
@@ -164,5 +164,5 @@ fi
 cat << REMINDER
 ---
 **Commands:** /wiki, /wiki-ingest, /wiki-query, /wiki-lint, /wiki-save, /wiki-graph, /wiki-review
-**Skill:** Use \`Skill("llm-wiki")\` for advanced wiki operations
+**Skill:** \`~/.agents/skills/llm-wiki/\` (\`Skill("llm-wiki")\` on Claude Code; read SKILL.md elsewhere) for advanced wiki operations
 REMINDER

@@ -1,7 +1,8 @@
 #!/bin/bash
-# uninstall.sh — Uninstall LLM Wiki skill from Claude Code
+# uninstall.sh — Uninstall the LLM Wiki skill / agent from every harness
 # Usage: uninstall.sh [--force]
-# Removes the skill directory and wiki slash commands
+# Removes the skill links, wiki slash commands, and agent-manual links that
+# agent-install.sh (or install.sh) created for Claude Code, Codex, Pi, and Bob
 # Exit: 0 on success, 1 on error
 
 set -euo pipefail
@@ -28,12 +29,15 @@ for arg in "$@"; do
             cat <<'USAGE'
 Usage: uninstall.sh [--force]
 
-Uninstall the LLM Wiki skill from Claude Code.
+Uninstall the LLM Wiki skill / agent from every harness it was wired into.
 
 Removes:
-  • ~/.claude/skills/llm-wiki/     (skill directory or symlink)
-  • ~/.claude/commands/wiki-*.md   (slash commands or symlinks)
-  • ~/.claude/CLAUDE.md            (only if it is a symlink to AGENT.md)
+  • ~/.agents/skills/llm-wiki, ~/.claude/skills/llm-wiki,
+    ~/.pi/agent/skills/llm-wiki, ~/.bob/skills/llm-wiki   (skill dirs or symlinks)
+  • wiki-*.md slash commands in ~/.claude/commands, $CODEX_HOME/prompts,
+    ~/.pi/agent/prompts
+  • ~/.claude/CLAUDE.md, $CODEX_HOME/AGENTS.md, ~/.pi/agent/AGENTS.md,
+    ~/.bob/rules/llm-wiki.md      (only where they are symlinks to AGENT.md)
   • ~/.llm-wiki-agent/             (agent definition — tooling only, agent mode)
   • ~/.llm-wiki-installed          (agent install sentinel)
 
@@ -51,33 +55,74 @@ done
 
 # ── Paths ───────────────────────────────────────────────────────────────────
 
-SKILL_DIR="$HOME/.claude/skills/llm-wiki"
-COMMANDS_DIR="$HOME/.claude/commands"
-MANUAL_LINK="$HOME/.claude/CLAUDE.md"
+CODEX_DIR="${CODEX_HOME:-$HOME/.codex}"
+SKILL_DIRS=(
+    "$HOME/.agents/skills/llm-wiki"
+    "$HOME/.claude/skills/llm-wiki"
+    "$HOME/.pi/agent/skills/llm-wiki"
+    "$HOME/.bob/skills/llm-wiki"
+)
+COMMANDS_DIRS=(
+    "$HOME/.claude/commands"
+    "$CODEX_DIR/prompts"
+    "$HOME/.pi/agent/prompts"
+)
+MANUAL_LINKS=(
+    "$HOME/.claude/CLAUDE.md"
+    "$CODEX_DIR/AGENTS.md"
+    "$HOME/.pi/agent/AGENTS.md"
+    "$HOME/.bob/rules/llm-wiki.md"
+)
 AGENT_SENTINEL="$HOME/.llm-wiki-installed"
 AGENT_SRC="${LLM_WIKI_AGENT_HOME:-$HOME/.llm-wiki-agent}"
 
-# Agent-mode manual: only touch ~/.claude/CLAUDE.md if it is our symlink
-MANUAL_IS_OURS=false
-if [ -L "$MANUAL_LINK" ]; then
-    case "$(readlink "$MANUAL_LINK")" in
-        */AGENT.md) MANUAL_IS_OURS=true ;;
-    esac
-fi
+# Agent-mode manual links: only touch a path if it is our symlink to AGENT.md
+OUR_MANUALS=()
+for link in "${MANUAL_LINKS[@]}"; do
+    if [ -L "$link" ]; then
+        case "$(readlink "$link")" in
+            */AGENT.md) OUR_MANUALS+=("$link") ;;
+        esac
+    fi
+done
+
+# Skill paths that exist and are not merely an alias of another listed path
+# (on the platform images ~/.claude/skills is a symlink to ~/.agents/skills).
+present_skill_dirs() {
+    local seen="" d
+    for d in "${SKILL_DIRS[@]}"; do
+        if [ -d "$d" ] || [ -L "$d" ]; then
+            local real
+            real="$(cd "$(dirname "$d")" 2>/dev/null && pwd -P)/$(basename "$d")"
+            case "$seen" in *"|$real|"*) continue ;; esac
+            seen="$seen|$real|"
+            echo "$d"
+        fi
+    done
+}
+
+present_command_files() {
+    local d f
+    for d in "${COMMANDS_DIRS[@]}"; do
+        for f in "$d"/wiki-*.md; do
+            [ -e "$f" ] || [ -L "$f" ] || continue
+            echo "$f"
+        done
+    done
+}
 
 # ── Pre-flight check ────────────────────────────────────────────────────────
 
 FOUND_ANYTHING=false
 
-if [ -d "$SKILL_DIR" ] || [ -L "$SKILL_DIR" ]; then
+PRESENT_SKILLS="$(present_skill_dirs)"
+PRESENT_COMMANDS="$(present_command_files)"
+
+if [ -n "$PRESENT_SKILLS" ] || [ -n "$PRESENT_COMMANDS" ]; then
     FOUND_ANYTHING=true
 fi
 
-if ls "$COMMANDS_DIR"/wiki-*.md >/dev/null 2>&1; then
-    FOUND_ANYTHING=true
-fi
-
-if [ "$MANUAL_IS_OURS" = true ] || [ -f "$AGENT_SENTINEL" ] || [ -d "$AGENT_SRC" ]; then
+if [ "${#OUR_MANUALS[@]}" -gt 0 ] || [ -f "$AGENT_SENTINEL" ] || [ -d "$AGENT_SRC" ]; then
     FOUND_ANYTHING=true
 fi
 
@@ -94,23 +139,25 @@ echo "${BOLD}LLM Wiki — Uninstall${NC}"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
-if [ -d "$SKILL_DIR" ]; then
-    echo "  Skill directory:"
-    echo "    ${YELLOW}$SKILL_DIR${NC}"
+if [ -n "$PRESENT_SKILLS" ]; then
+    echo "  Skill directories / symlinks:"
+    while IFS= read -r d; do
+        echo "    ${YELLOW}$d${NC}"
+    done <<< "$PRESENT_SKILLS"
 fi
 
-if ls "$COMMANDS_DIR"/wiki-*.md >/dev/null 2>&1; then
+if [ -n "$PRESENT_COMMANDS" ]; then
     echo "  Slash commands:"
-    for f in "$COMMANDS_DIR"/wiki-*.md; do
-        if [ -f "$f" ]; then
-            echo "    ${YELLOW}$f${NC}"
-        fi
-    done
+    while IFS= read -r f; do
+        echo "    ${YELLOW}$f${NC}"
+    done <<< "$PRESENT_COMMANDS"
 fi
 
-if [ "$MANUAL_IS_OURS" = true ]; then
-    echo "  Agent manual symlink:"
-    echo "    ${YELLOW}$MANUAL_LINK${NC}"
+if [ "${#OUR_MANUALS[@]}" -gt 0 ]; then
+    echo "  Agent manual symlinks:"
+    for link in "${OUR_MANUALS[@]}"; do
+        echo "    ${YELLOW}$link${NC}"
+    done
 fi
 
 if [ -d "$AGENT_SRC" ]; then
@@ -141,34 +188,34 @@ echo ""
 
 REMOVED_ITEMS=0
 
-# 1. Remove skill directory (or agent-mode symlink — target repo untouched)
-if [ -d "$SKILL_DIR" ] || [ -L "$SKILL_DIR" ]; then
-    rm -rf "$SKILL_DIR"
-    success "Removed skill directory"
-    REMOVED_ITEMS=$((REMOVED_ITEMS + 1))
+# 1. Remove skill directories (or agent-mode symlinks — target repo untouched)
+if [ -n "$PRESENT_SKILLS" ]; then
+    while IFS= read -r d; do
+        rm -rf "$d"
+        success "Removed $d"
+        REMOVED_ITEMS=$((REMOVED_ITEMS + 1))
+    done <<< "$PRESENT_SKILLS"
 else
     warn "Skill directory not found (already removed?)"
 fi
 
-# 2. Remove wiki command files
-if ls "$COMMANDS_DIR"/wiki-*.md >/dev/null 2>&1; then
-    for f in "$COMMANDS_DIR"/wiki-*.md; do
-        if [ -f "$f" ]; then
-            rm -f "$f"
-            success "Removed $(basename "$f")"
-            REMOVED_ITEMS=$((REMOVED_ITEMS + 1))
-        fi
-    done
+# 2. Remove wiki command files from every harness command directory
+if [ -n "$PRESENT_COMMANDS" ]; then
+    while IFS= read -r f; do
+        rm -f "$f"
+        success "Removed $f"
+        REMOVED_ITEMS=$((REMOVED_ITEMS + 1))
+    done <<< "$PRESENT_COMMANDS"
 else
     warn "No wiki command files found (already removed?)"
 fi
 
-# 3. Remove agent-mode artifacts (manual symlink + source + install sentinel)
-if [ "$MANUAL_IS_OURS" = true ]; then
-    rm -f "$MANUAL_LINK"
-    success "Removed agent manual symlink"
+# 3. Remove agent-mode artifacts (manual symlinks + source + install sentinel)
+for link in "${OUR_MANUALS[@]}"; do
+    rm -f "$link"
+    success "Removed agent manual symlink $link"
     REMOVED_ITEMS=$((REMOVED_ITEMS + 1))
-fi
+done
 
 if [ -d "$AGENT_SRC" ]; then
     rm -rf "$AGENT_SRC"

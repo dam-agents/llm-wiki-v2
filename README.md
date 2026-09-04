@@ -66,7 +66,7 @@ curl -fsSL https://raw.githubusercontent.com/dam-agents/llm-wiki-v2/main/bootstr
 ```
 
 It installs the agent definition into `~/.llm-wiki-agent` and symlinks
-everything into `~/.claude` (so `git pull` updates the agent), making every
+everything into every installed harness — Claude Code, Codex, Pi, Bob (so `git pull` updates the agent), making every
 session wiki-aware via [AGENT.md](AGENT.md). Tooling lives in your home
 directory and the working directory holds only the wiki and its sources —
 they never collide. The interactive `/wiki-onboard` interview runs

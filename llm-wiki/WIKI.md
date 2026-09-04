@@ -28,7 +28,7 @@ When the user asks a factual, conceptual, or knowledge-based question, **always 
 
 - Regenerate the index (read all pages, extract frontmatter, write to `.llm-wiki/index.md`)
 - Refresh `./wiki/USAGE_GUIDE.md` (skill workflow `workflows/ingest.md` Step 14b)
-- Run `~/.claude/skills/llm-wiki/scripts/` checks if needed
+- Run the skill's `scripts/` checks if needed (skill directory: `~/.agents/skills/llm-wiki/`, or `~/.claude/skills/llm-wiki/` for a copy install)
 
 ## Key Paths
 
@@ -43,7 +43,7 @@ When the user asks a factual, conceptual, or knowledge-based question, **always 
 
 ## Slash Commands
 
-Use the Skill tool: `Skill("llm-wiki")` for advanced operations:
+Load the skill for advanced operations (`Skill("llm-wiki")` on Claude Code; read `SKILL.md` in the skill directory elsewhere):
 
 - `/wiki` — Dashboard
 - `/wiki-ingest <file>` — Ingest a source

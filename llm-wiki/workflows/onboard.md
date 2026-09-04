@@ -55,11 +55,12 @@ directory (the operational space — never in `~/.llm-wiki-agent`):
 
 ```bash
 mkdir -p ./.raw
-~/.claude/skills/llm-wiki/scripts/init-wiki.sh ./wiki
+~/.agents/skills/llm-wiki/scripts/init-wiki.sh ./wiki
 ```
 
-(If the skill is not at `~/.claude/skills/llm-wiki`, resolve `scripts/`
-relative to this workflow file.)
+(`~/.agents/skills/llm-wiki` is the agent-mode skill directory on every
+harness; a copy install lives at `~/.claude/skills/llm-wiki`. If neither
+exists, resolve `scripts/` relative to this workflow file.)
 
 ## Step 3: Write Configuration
 

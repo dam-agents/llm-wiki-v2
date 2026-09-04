@@ -38,4 +38,4 @@ After presenting the answer, offer to save as a synthesis page with `/wiki-save`
 
 ### Full workflow
 
-Use `Skill("llm-wiki")` → `workflows/query.md` for the complete procedure.
+Use the skill (`Skill("llm-wiki")` on Claude Code; otherwise read `SKILL.md` in the skill directory) → `workflows/query.md` for the complete procedure.

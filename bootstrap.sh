@@ -6,15 +6,18 @@
 # From a local checkout: ./bootstrap.sh
 #
 # Installs the agent tooling into $HOME/.llm-wiki-agent (a git checkout) and
-# symlinks it into ~/.claude. It NEVER touches the working directory or the
-# wiki — those belong to onboarding, which is a separate, interactive step.
-# See INSTALLATION.md.
+# symlinks it into every installed harness (Claude Code, Codex, Pi, Bob). It
+# NEVER touches the working directory or the wiki — those belong to
+# onboarding, which is a separate, interactive step. See INSTALLATION.md.
 #
 # Env overrides:
 #   LLM_WIKI_REPO        Git URL or local path to install from
 #                        (default: dam-agents/llm-wiki-v2, or a local checkout
 #                        if bootstrap.sh is run from inside one)
 #   LLM_WIKI_AGENT_HOME  Install location (default: $HOME/.llm-wiki-agent)
+#   LLM_WIKI_HARNESS     Harness(es) to wire: claude-code, codex, pi, bob, all
+#                        (comma/space-separated; default: every harness CLI on
+#                        PATH, else claude-code) — read by agent-install.sh
 # Exit: 0 on success or already installed, 1 on error
 
 set -euo pipefail
@@ -39,11 +42,14 @@ REPO_URL="${LLM_WIKI_REPO:-$DEFAULT_REPO}"
 if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
     echo "Usage: bootstrap.sh"
     echo "Install the LLM Wiki agent into \$HOME/.llm-wiki-agent and wire it"
-    echo "into ~/.claude. Deterministic machine setup only — onboarding (the"
-    echo "interactive wiki interview) runs separately at the next session."
+    echo "into every installed harness (Claude Code, Codex, Pi, Bob)."
+    echo "Deterministic machine setup only — onboarding (the interactive wiki"
+    echo "interview) runs separately at the next session."
     echo "Idempotent: exits early if already installed."
     echo "  Env: LLM_WIKI_REPO        source repo URL or local path"
     echo "       LLM_WIKI_AGENT_HOME  install location (default ~/.llm-wiki-agent)"
+    echo "       LLM_WIKI_HARNESS     harness list: claude-code codex pi bob all"
+    echo "                            (default: CLIs found on PATH, else claude-code)"
     exit 0
 fi
 
