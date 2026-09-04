@@ -132,7 +132,7 @@ jobs:
             case "$h" in
               codex) test -L "$FAKE_HOME/.codex/AGENTS.md"; test -L "$FAKE_HOME/.codex/prompts/wiki-onboard.md" ;;
               pi)    test -L "$FAKE_HOME/.pi/agent/AGENTS.md"; test -L "$FAKE_HOME/.pi/agent/prompts/wiki-onboard.md"; test -L "$FAKE_HOME/.pi/agent/skills/llm-wiki" ;;
-              bob)   test -L "$FAKE_HOME/.bob/rules/llm-wiki.md"; test -L "$FAKE_HOME/.bob/skills/llm-wiki" ;;
+              bob)   test -L "$FAKE_HOME/.bob/rules/llm-wiki.md"; test -L "$FAKE_HOME/.claude/skills/llm-wiki"; test -L "$FAKE_HOME/.bob/skills/llm-wiki" ;;
             esac
             HOME="$FAKE_HOME" bash "$GITHUB_WORKSPACE/uninstall.sh" --force
             test ! -e "$FAKE_HOME/.agents/skills/llm-wiki"

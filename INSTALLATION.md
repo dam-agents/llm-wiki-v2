@@ -57,7 +57,7 @@ else every harness CLI found on `PATH` (`claude`, `codex`, `pi`, `bob`), else
 | Claude Code | `~/.claude/skills/llm-wiki` (usually already an alias of `~/.agents/skills`) | `~/.claude/CLAUDE.md` | `~/.claude/commands/wiki-*.md` → `/wiki-…` | `SessionStart`/`SessionEnd` in `~/.claude/settings.json` |
 | Codex | `~/.agents/skills` (native) | `$CODEX_HOME/AGENTS.md` (`~/.codex/AGENTS.md`) | `$CODEX_HOME/prompts/wiki-*.md` → `/prompts:wiki-…` | none — `AGENT.md` Rule 0a |
 | Pi | `~/.pi/agent/skills/llm-wiki` (also reads `~/.agents/skills`) | `~/.pi/agent/AGENTS.md` | `~/.pi/agent/prompts/wiki-*.md` → `/wiki-…` | none — `AGENT.md` Rule 0a |
-| Bob | `~/.bob/skills/llm-wiki` | `~/.bob/rules/llm-wiki.md` | none — the manual maps `/wiki-…` to workflows | none — `AGENT.md` Rule 0a |
+| Bob | `~/.claude/skills/llm-wiki` (Bob's global skills dir) and `~/.bob/skills/llm-wiki` | `~/.bob/rules/llm-wiki.md` | none — the manual maps `/wiki-…` to workflows | none — `AGENT.md` Rule 0a |
 
 The command files are plain markdown with `description` / `argument-hint`
 frontmatter and `$ARGUMENTS` placeholders, which Claude Code, Codex, and Pi
