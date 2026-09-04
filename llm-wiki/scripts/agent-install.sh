@@ -224,6 +224,9 @@ for h in $HARNESSES; do
             echo "  ℹ no session hooks on pi — AGENT.md Rule 0a runs the start script instead"
             ;;
         bob)
+            # Bob 2.0's loader names ~/.claude/skills as its global skill
+            # directory; ~/.bob/skills is linked too for Bob builds that scan it.
+            link_skill_into "$HOME/.claude/skills"
             link_skill_into "$HOME/.bob/skills"
             link_manual_to "$HOME/.bob/rules/llm-wiki.md"
             echo "  ℹ bob has no slash-command files — the manual maps /wiki-* to workflows"

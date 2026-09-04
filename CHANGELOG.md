@@ -14,7 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `~/.agents/skills/llm-wiki` (agentskills.io, read by all harnesses) and the
   manual + slash commands are linked into Claude Code (`~/.claude`), Codex
   (`$CODEX_HOME/AGENTS.md`, `$CODEX_HOME/prompts` as `/prompts:wiki-…`), Pi
-  (`~/.pi/agent/{AGENTS.md,prompts,skills}`), and Bob (`~/.bob/rules`,
+  (`~/.pi/agent/{AGENTS.md,prompts,skills}`), and Bob (`~/.bob/rules`;
+  the skill goes to `~/.claude/skills`, Bob's global skills directory, and
   `~/.bob/skills`). Selection: `LLM_WIKI_HARNESS` / `--harness`, else the
   harness CLIs found on `PATH`, else `claude-code`.
 - `AGENT.md` Rule 0a: on harnesses without session hooks the agent runs
