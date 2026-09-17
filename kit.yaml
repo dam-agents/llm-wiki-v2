@@ -1,9 +1,7 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/dam-agents/dam-starter-kits/main/kit.schema.json
 # The starter kit this toolkit is offered as. It lives here, beside the code it
-# installs, so a change to the bootstrap and a change to the kit that describes
-# it are the same commit. The curated catalog points at this repository; the
-# platform resolves it to a commit when it refreshes, and seeds the workspace
-# from that same commit because the seed names no ref of its own.
+# installs, so a change to the bootstrap and a change to the kit describing it
+# are the same commit.
 schemaVersion: v1
 id: llm-wiki
 name: LLM Wiki
@@ -17,8 +15,10 @@ icon: chart
 onboarding: { command: wiki-onboard }
 knowledgeBase:
   shareRoots: [wiki]
+# `self` is this repository, at the commit the kit was resolved at, so the
+# agent's workspace is always the code this file shipped with.
 seed:
-  url: https://github.com/dam-agents/llm-wiki-v2
+  self: true
 install:
   command: bash bootstrap.sh
 providers: [ibm-litellm, anthropic, openai]
