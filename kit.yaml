@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/dam-agents/dam-starter-kits/main/kit.schema.json
+# The starter kit this toolkit is offered as. It lives here, beside the code it
+# installs, so a change to the bootstrap and a change to the kit that describes
+# it are the same commit. The curated catalog points at this repository; the
+# platform resolves it to a commit when it refreshes, and seeds the workspace
+# from that same commit because the seed names no ref of its own.
+schemaVersion: v1
+id: llm-wiki
+name: LLM Wiki
+description: >-
+  A knowledge base agent that builds a structured wiki with a knowledge graph,
+  from the llm-wiki toolkit. Point it at repos and documents, then ask it
+  questions.
+category: knowledge
+icon: chart
+# The bootstrap below installs this command; the first session runs it.
+onboarding: { command: wiki-onboard }
+knowledgeBase:
+  shareRoots: [wiki]
+seed:
+  url: https://github.com/dam-agents/llm-wiki-v2
+install:
+  command: bash bootstrap.sh
+providers: [ibm-litellm, anthropic, openai]
