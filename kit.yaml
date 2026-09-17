@@ -15,10 +15,10 @@ icon: chart
 onboarding: { command: wiki-onboard }
 knowledgeBase:
   shareRoots: [wiki]
-# The seed names no repository, which means this one, at the commit the kit was
-# resolved at. The agent's workspace is therefore always the code this file
-# shipped with.
-seed: {}
+# `self` is this repository, at the commit the kit was resolved at, so the
+# agent's workspace is always the code this file shipped with.
+seed:
+  self: true
 install:
   command: bash bootstrap.sh
 providers: [ibm-litellm, anthropic, openai]
