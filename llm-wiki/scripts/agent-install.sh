@@ -9,6 +9,7 @@
 # Harness selection (first match wins):
 #   --harness <list>       comma/space-separated: claude-code codex pi bob all
 #   LLM_WIKI_HARNESS=<list>  same, as an environment variable
+#   PLATFORM_HARNESS=<family>  the family the platform's harness image runs (set in the image)
 #   autodetect             every harness CLI found on PATH (claude, codex, pi, bob);
 #                          falls back to claude-code when none is found
 # Exit: 0 on success, 1 on error
@@ -19,7 +20,7 @@ KNOWN_HARNESSES="claude-code codex pi bob"
 
 FORCE=false
 VERBOSE=false
-HARNESS_ARG="${LLM_WIKI_HARNESS:-}"
+HARNESS_ARG="${LLM_WIKI_HARNESS:-${PLATFORM_HARNESS:-}}"
 while [ $# -gt 0 ]; do
     case "$1" in
         --help|-h)
@@ -28,7 +29,8 @@ while [ $# -gt 0 ]; do
             echo "for every selected harness."
             echo "  --harness <list>  Harnesses to wire: claude-code, codex, pi, bob, all"
             echo "                    (comma/space-separated; default: LLM_WIKI_HARNESS,"
-            echo "                    else every harness CLI found on PATH, else claude-code)"
+            echo "                    else PLATFORM_HARNESS, else every harness CLI found"
+            echo "                    on PATH, else claude-code)"
             echo "  --force           Re-apply even if the install sentinel exists"
             echo "  --verbose         Print detailed progress information"
             echo "  --help, -h        Show this help message"

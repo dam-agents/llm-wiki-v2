@@ -4,6 +4,9 @@
 # On a brand-new machine, from anywhere:
 #   curl -fsSL https://raw.githubusercontent.com/dam-agents/llm-wiki-v2/main/bootstrap.sh | bash
 # From a local checkout: ./bootstrap.sh
+# That is how the platform runs it: the kit seeds this repo into the agent's
+# workspace at a pinned commit and runs `bash bootstrap.sh` from there, so
+# nothing is fetched at install.
 #
 # Installs the agent tooling into $HOME/.llm-wiki-agent (a git checkout) and
 # symlinks it into every installed harness (Claude Code, Codex, Pi, Bob). It
@@ -16,8 +19,10 @@
 #                        if bootstrap.sh is run from inside one)
 #   LLM_WIKI_AGENT_HOME  Install location (default: $HOME/.llm-wiki-agent)
 #   LLM_WIKI_HARNESS     Harness(es) to wire: claude-code, codex, pi, bob, all
-#                        (comma/space-separated; default: every harness CLI on
-#                        PATH, else claude-code) — read by agent-install.sh
+#                        (comma/space-separated; default: PLATFORM_HARNESS, the
+#                        family the platform's harness image runs, else every
+#                        harness CLI on PATH, else claude-code) — read by
+#                        agent-install.sh
 # Exit: 0 on success or already installed, 1 on error
 
 set -euo pipefail
@@ -49,7 +54,8 @@ if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
     echo "  Env: LLM_WIKI_REPO        source repo URL or local path"
     echo "       LLM_WIKI_AGENT_HOME  install location (default ~/.llm-wiki-agent)"
     echo "       LLM_WIKI_HARNESS     harness list: claude-code codex pi bob all"
-    echo "                            (default: CLIs found on PATH, else claude-code)"
+    echo "                            (default: PLATFORM_HARNESS, else CLIs found on PATH,"
+    echo "                            else claude-code)"
     exit 0
 fi
 
