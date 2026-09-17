@@ -28,6 +28,10 @@ If the repo is already checked out locally, the equivalent is:
 ./bootstrap.sh
 ```
 
+That is also how the platform's kit installs it: the kit seeds this repo into
+the agent's workspace at a pinned commit and runs `bash bootstrap.sh` from that
+checkout, so nothing is fetched at install.
+
 If an agent is running the install, this is the entire operator prompt:
 
 > Run this command and report the result. Do not start onboarding:
@@ -49,8 +53,10 @@ sentinel; re-runs exit early) and, in order:
 
 Which harnesses get wired is decided in this order: `LLM_WIKI_HARNESS`
 (comma/space-separated list of `claude-code`, `codex`, `pi`, `bob`, or `all`),
-else every harness CLI found on `PATH` (`claude`, `codex`, `pi`, `bob`), else
-`claude-code`. To wire an additional harness later, re-run with `--force`.
+else `PLATFORM_HARNESS` (the family the platform's harness image runs, set in
+the image itself), else every harness CLI found on `PATH` (`claude`, `codex`,
+`pi`, `bob`), else `claude-code`. To wire an additional harness later, re-run
+with `--force`.
 
 | Harness | Skill | Global manual (`AGENT.md`) | Slash commands | Session hooks |
 |---------|-------|----------------------------|----------------|---------------|
