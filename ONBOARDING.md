@@ -6,15 +6,14 @@ re-run — with the platform's onboarding checklist around it. The complete
 procedure, with every path and file it writes, is
 `llm-wiki/workflows/onboard.md` in this checkout, installed at
 `~/.llm-wiki-agent/llm-wiki/workflows/onboard.md`. Follow it; this file says
-what to ask the user and when to report progress back to the platform.
+what to ask the user, and what counts as finished.
 
 `bash bootstrap.sh` has already run, so the tooling is in `~/.llm-wiki-agent`
 and wired into your harness. Nothing here installs anything.
 
-## 0. Set the checklist first
+## 0. The checklist
 
-Before you ask the user anything, call `set_onboarding_checklist` so they can
-follow along in the platform:
+What to report as the onboarding checklist, before you ask the user anything:
 
 | id | label |
 | --- | --- |
@@ -24,11 +23,8 @@ follow along in the platform:
 | `backup` | Decide whether the wiki gets a git remote |
 | `schedule` | Decide on a maintenance cadence |
 
-Tick each with `complete_onboarding_step` as the user answers — a decision to
-skip is an answer, so `backup` and `schedule` tick on a "no" too. Call
-`set_onboarding_checklist` again if the conversation changes what you need; the
-steps you keep stay ticked. Your own work — running `init-wiki.sh`, writing the
-config, ingesting, writing the usage guide — is never a step.
+A decision to skip is an answer, so `backup` and `schedule` are done on a "no"
+too.
 
 ## 1. Guard
 
@@ -45,14 +41,13 @@ ask in one message, conversationally rather than as a form:
    it steers ingestion and tagging.
 
 Nothing technical — no page types, review checkpoints or directory layout. The
-wiki is English-only, so do not ask about language. Tick `name` and `purpose`.
+wiki is English-only, so do not ask about language.
 
 ## 3. Initialize and configure
 
 Create `./.raw`, run `init-wiki.sh ./wiki` from the skill directory, and write
 the answers into `./wiki/.llm-wiki/config.md` — `wiki_name`, `language: en`, a
-`## Purpose` line, and `require_review: false` in agent mode. Silently; this is
-your work, not a step.
+`## Purpose` line, and `require_review: false` in agent mode. Silently.
 
 ## 4. Wiki git remote (optional)
 
@@ -60,22 +55,21 @@ Initialize `./wiki` as its own git repository and commit, then ask whether the
 wiki should be backed up to a remote. On a URL, wire it up and push, reporting
 a failure plainly and moving on; on a no, skip without follow-up questions. The
 wiki repository is never pushed to the agent's own definition repository.
-Either way, tick `backup`.
 
 ## 5. Maintenance cadence (optional)
 
 Ask for a cadence — daily, weekly, or skip. If they pick one, create it with
-the platform's `create_schedule` tool; a schedule you create now is held until
-you mark onboarding complete, which is the point. Fall back to the harness's
-own scheduler, and if there is none, say so in the closing message and rely on
-session start. Tick `schedule`.
+the platform's `create_schedule` tool; a schedule created now is held until
+onboarding is complete, which is the point. Fall back to the harness's own
+scheduler, and if there is none, say so in the closing message and rely on
+session start.
 
 ## 6. First sources
 
 Ask for documents: files in `./.raw/`, paths, URLs — or the bundled
 Greek-mythology demo. Ingest what arrives, silently, one summary line per
 source. If they have nothing yet, say the wiki fills up whenever they hand you
-documents. Tick `sources`.
+documents.
 
 ## 7. Usage guide, sentinel, close
 
@@ -86,8 +80,7 @@ anything was ingested; one or two concrete next actions.
 
 ## 8. Release the agent
 
-Call `mark_onboarding_complete` once the sentinel is written and the user's
-answers are in place. Not before — any schedule you created in Step 5 stays
-held until you do. If the user leaves partway through, leave it uncalled: the
-wiki keeps whatever was set up, and the platform keeps showing the setup as
-unfinished.
+Onboarding is finished once the sentinel is written and the user's answers are
+in place — that, and nothing earlier, is when the wiki is genuinely set up. A
+user who leaves partway through leaves it unfinished: the wiki keeps whatever
+was configured, and any schedule from Step 5 stays held.
