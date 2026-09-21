@@ -11,8 +11,6 @@ description: >-
   questions.
 category: knowledge
 icon: chart
-# The bootstrap below installs this command; the first session runs it.
-onboarding: { command: wiki-onboard }
 knowledgeBase:
   shareRoots: [wiki]
 # `self` is this repository, at the commit the kit was resolved at, so the
