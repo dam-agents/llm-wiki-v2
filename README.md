@@ -71,7 +71,9 @@ session wiki-aware via [AGENT.md](AGENT.md). Tooling lives in your home
 directory and the working directory holds only the wiki and its sources —
 they never collide. The interactive `/wiki-onboard` interview runs
 separately; the next session requests it automatically. Install once per
-machine; onboarding runs per wiki.
+machine; onboarding runs per wiki. Started as a DAM starter kit, the first
+session follows [`ONBOARDING.md`](ONBOARDING.md) instead — the same interview,
+reporting its progress to the platform as an onboarding checklist.
 
 ### More Options
 
