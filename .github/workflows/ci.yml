@@ -228,7 +228,7 @@ jobs:
           mv "$FH/.claude/skills/llm-wiki/WIKI.md" "$P1/WIKI.md.saved"
           OUT1="$(HOME="$FH" bash "$SKILLCOPY/llm-wiki/scripts/setup-project.sh" 2>&1)" || true
           test "$(cat CLAUDE.md)" = "# Keep me"
-          echo "$OUT1" | grep -vq "prepended to CLAUDE.md"
+          ! echo "$OUT1" | grep -q "prepended to CLAUDE.md"
           mv "$P1/WIKI.md.saved" "$SKILLCOPY/llm-wiki/WIKI.md"
           cd "$TMPDIR"
 
@@ -241,7 +241,7 @@ jobs:
           mkdir -p .claude
           printf '{"model":"x"}\n' > .claude/settings.local.json
           OUT2="$(PATH="$BIN2:$PATH" HOME="$FH" bash "$SKILLCOPY/llm-wiki/scripts/setup-project.sh" --with-hooks 2>&1)" || true
-          echo "$OUT2" | grep -vq "SessionStart hook configured"
+          ! echo "$OUT2" | grep -q "SessionStart hook configured"
           echo "$OUT2" | grep -q "add the hook manually"
           cd "$TMPDIR"
 
@@ -251,7 +251,7 @@ jobs:
           chmod +x "$BIN2/mv"
           cd "$P3"
           OUT3="$(PATH="$BIN2:$PATH" HOME="$FH" bash "$SKILLCOPY/llm-wiki/scripts/setup-project.sh" --with-hooks 2>&1)" || true
-          echo "$OUT3" | grep -vq "Created .claude/settings.local.json with SessionStart hook"
+          ! echo "$OUT3" | grep -q "Created .claude/settings.local.json with SessionStart hook"
           echo "$OUT3" | grep -q "add the hook manually"
           cd "$TMPDIR"
           rm -rf "$BIN2"
