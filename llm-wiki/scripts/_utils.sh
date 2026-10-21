@@ -32,9 +32,11 @@ resolve_target() {
     echo "$p"
 }
 
-# file_mode — Permission bits of $1 in octal (BSD and GNU stat).
+# file_mode — Permission bits of $1 in octal. GNU stat first: BSD stat -c fails
+# outright, while GNU stat -f means filesystem status and would succeed with
+# the wrong output.
 file_mode() {
-    stat -f '%Lp' "$1" 2>/dev/null || stat -c '%a' "$1" 2>/dev/null
+    stat -c '%a' "$1" 2>/dev/null || stat -f '%Lp' "$1" 2>/dev/null
 }
 
 # new_temp_beside — mktemp a file in the directory a write to $1 will land in,
@@ -52,7 +54,8 @@ new_temp_beside() {
 publish_temp() {
     local tmp="$1" target mode
     target="$(resolve_target "$2")" || { rm -f "$tmp"; return 1; }
-    if [ -f "$target" ] && mode="$(file_mode "$target")" && [ -n "$mode" ]; then
+    if [ -f "$target" ] && mode="$(file_mode "$target")" \
+        && case "$mode" in ''|*[!0-7]*) false ;; *) true ;; esac; then
         chmod "$mode" "$tmp" || true
     fi
     mv -f "$tmp" "$target" || { rm -f "$tmp"; return 1; }

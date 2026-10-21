@@ -29,6 +29,10 @@ FAIL=0
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+# shellcheck source=../llm-wiki/scripts/_utils.sh
+# shellcheck disable=SC1091
+source "$PROJECT_ROOT/llm-wiki/scripts/_utils.sh"   # file_mode
+
 cd "$PROJECT_ROOT"
 
 # ── 1. ShellCheck ───────────────────────────────────────────────────────────
@@ -393,8 +397,8 @@ WRAP
         grep -q "LLM Wiki" CLAUDE.md || exit 1
         grep -q "# Project" CLAUDE.md || exit 1
         # Existing permissions survive the rename
-        [ "$(stat -f '%Lp' CLAUDE.md 2>/dev/null || stat -c '%a' CLAUDE.md)" = "644" ] || exit 1
-        [ "$(stat -f '%Lp' .claude/settings.local.json 2>/dev/null || stat -c '%a' .claude/settings.local.json)" = "640" ] || exit 1
+        [ "$(file_mode CLAUDE.md)" = "644" ] || exit 1
+        [ "$(file_mode .claude/settings.local.json)" = "640" ] || exit 1
         # Unrelated settings keys survive, hook lands
         jq -e '.env.k == 1' .claude/settings.local.json >/dev/null 2>&1 || exit 1
         jq -e '[.hooks.SessionStart[]?] | any(.command | test("session-start.sh"))' \
@@ -403,7 +407,7 @@ WRAP
         # A brand-new settings file is published 0600, not written in place
         rm -rf .claude
         HOME="$FAKE_HOME" bash "$PROJECT_ROOT/llm-wiki/scripts/setup-project.sh" --with-hooks >/dev/null 2>&1 || exit 1
-        [ "$(stat -f '%Lp' .claude/settings.local.json 2>/dev/null || stat -c '%a' .claude/settings.local.json)" = "600" ] || exit 1
+        [ "$(file_mode .claude/settings.local.json)" = "600" ] || exit 1
         jq -e '[.hooks.SessionStart[]?] | any(.command | test("session-start.sh"))' \
             .claude/settings.local.json >/dev/null 2>&1 || exit 1
         exit 0
