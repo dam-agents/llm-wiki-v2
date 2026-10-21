@@ -142,6 +142,50 @@ jobs:
             rm -rf "$FAKE_HOME"
           done
 
+          echo "=== Testing hooks merge against a concurrent settings.json writer ==="
+          for _ in 1 2 3; do
+            FAKE_HOME="$(mktemp -d)"
+            mkdir -p "$FAKE_HOME/.claude"
+            printf '{"model":"sonnet"}\n' > "$FAKE_HOME/.claude/settings.json"
+            WRITER_STOP="$FAKE_HOME/stop-writer"
+            # dam's Claude Code image syncs through the shared
+            # settings.json.tmp name, stealing the installer's temp file.
+            (
+              while [ ! -f "$WRITER_STOP" ]; do
+                mv "$FAKE_HOME/.claude/settings.json.tmp" "$FAKE_HOME/.claude/settings.json" 2>/dev/null || sleep 0.01
+              done
+            ) >/dev/null 2>&1 &
+            WRITER_PID=$!
+            HOME="$FAKE_HOME" bash "$GITHUB_WORKSPACE/llm-wiki/scripts/agent-install.sh"
+            touch "$WRITER_STOP"
+            wait "$WRITER_PID" || true
+            rm -rf "$FAKE_HOME"
+          done
+          # Once no one else is writing, the hooks must land, no temp litter left
+          FAKE_HOME="$(mktemp -d)"
+          mkdir -p "$FAKE_HOME/.claude"
+          printf '{"model":"sonnet"}\n' > "$FAKE_HOME/.claude/settings.json"
+          HOME="$FAKE_HOME" bash "$GITHUB_WORKSPACE/llm-wiki/scripts/agent-install.sh"
+          jq -e '[.hooks.SessionStart[]?.hooks[]?.command // empty] | any(test("session-start.sh"))' \
+            "$FAKE_HOME/.claude/settings.json"
+          test -z "$(find "$FAKE_HOME/.claude" -maxdepth 1 -name '.settings.json.*' -print -quit)"
+
+          echo "=== Testing setup-project.sh merge (no temp files left behind) ==="
+          PROJ="$(mktemp -d)"
+          FAKE_HOME="$(mktemp -d)"
+          HOME="$FAKE_HOME" bash "$GITHUB_WORKSPACE/llm-wiki/scripts/agent-install.sh" --harness claude-code
+          cd "$PROJ"
+          mkdir -p .claude
+          printf '# Project\n' > CLAUDE.md
+          printf '{"env":{}}\n' > .claude/settings.local.json
+          HOME="$FAKE_HOME" bash "$GITHUB_WORKSPACE/llm-wiki/scripts/setup-project.sh" --with-hooks
+          grep -q "LLM Wiki" CLAUDE.md
+          grep -q "# Project" CLAUDE.md
+          jq -e '[.hooks.SessionStart[]?] | any(.command | test("session-start.sh"))' .claude/settings.local.json
+          test -z "$(find . -maxdepth 2 \( -name '*.json.*' -o -name 'CLAUDE.md.*' \) -print -quit)"
+          cd "$TMPDIR"
+          rm -rf "$PROJ" "$FAKE_HOME"
+
           echo "=== Testing bootstrap.sh (local bare remote, isolated HOME) ==="
           BARE="$(mktemp -d)/origin.git"
           git init --bare -b main "$BARE"

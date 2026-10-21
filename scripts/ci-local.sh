@@ -293,6 +293,73 @@ EOF
         rm -rf "$FAKE_HOME"
     done
 
+    # A concurrent writer must not break the hooks merge. The platform's
+    # Claude Code image syncs ~/.claude/settings.json through the same fixed
+    # settings.json.tmp name, which is what made agent-install.sh fail with
+    # "mv: cannot stat .../settings.json.tmp".
+    echo ""
+    echo "--- Testing hooks merge against a concurrent settings.json writer ---"
+    MERGE_OK=true
+    for _ in 1 2 3; do
+        FAKE_HOME="$(mktemp -d)"
+        mkdir -p "$FAKE_HOME/.claude"
+        printf '{"model":"sonnet"}\n' > "$FAKE_HOME/.claude/settings.json"
+        WRITER_STOP="$FAKE_HOME/stop-writer"
+        # What dam's Claude Code image does: sync the file through the shared
+        # settings.json.tmp name, i.e. steal the installer's temp file mid-merge.
+        (
+            while [ ! -f "$WRITER_STOP" ]; do
+                mv "$FAKE_HOME/.claude/settings.json.tmp" "$FAKE_HOME/.claude/settings.json" 2>/dev/null \
+                    || sleep 0.01
+            done
+        ) >/dev/null 2>&1 &
+        WRITER_PID=$!
+        HOME="$FAKE_HOME" bash "$PROJECT_ROOT/llm-wiki/scripts/agent-install.sh" >/dev/null 2>&1 || MERGE_OK=false
+        touch "$WRITER_STOP"
+        wait "$WRITER_PID" 2>/dev/null || true
+        rm -rf "$FAKE_HOME"
+    done
+    # Once no one else is writing, the hooks must land and leave no temp litter.
+    FAKE_HOME="$(mktemp -d)"
+    mkdir -p "$FAKE_HOME/.claude"
+    printf '{"model":"sonnet"}\n' > "$FAKE_HOME/.claude/settings.json"
+    if [ "$MERGE_OK" = true ] \
+        && HOME="$FAKE_HOME" bash "$PROJECT_ROOT/llm-wiki/scripts/agent-install.sh" >/dev/null 2>&1 \
+        && jq -e '[.hooks.SessionStart[]?.hooks[]?.command // empty] | any(test("session-start.sh"))' \
+            "$FAKE_HOME/.claude/settings.json" >/dev/null 2>&1 \
+        && [ -z "$(find "$FAKE_HOME/.claude" -maxdepth 1 -name '.settings.json.*' -print -quit)" ]; then
+        success "  hooks merge (survives a concurrent settings.json writer)"
+    else
+        error "  hooks merge under a concurrent writer failed"
+        INTEGRATION_OK=false
+    fi
+    rm -rf "$FAKE_HOME"
+
+    # setup-project.sh writes CLAUDE.md and settings.local.json the same way
+    echo ""
+    echo "--- Testing setup-project.sh merge (no temp files left behind) ---"
+    PROJ="$(mktemp -d)"
+    FAKE_HOME="$(mktemp -d)"
+    HOME="$FAKE_HOME" bash "$PROJECT_ROOT/llm-wiki/scripts/agent-install.sh" --harness claude-code >/dev/null 2>&1
+    if (
+        cd "$PROJ"
+        mkdir -p .claude
+        printf '# Project\n' > CLAUDE.md
+        printf '{"env":{}}\n' > .claude/settings.local.json
+        HOME="$FAKE_HOME" bash "$PROJECT_ROOT/llm-wiki/scripts/setup-project.sh" --with-hooks >/dev/null 2>&1 \
+            && grep -q "LLM Wiki" CLAUDE.md \
+            && grep -q "# Project" CLAUDE.md \
+            && jq -e '[.hooks.SessionStart[]?] | any(.command | test("session-start.sh"))' \
+                .claude/settings.local.json >/dev/null 2>&1 \
+            && [ -z "$(find . -maxdepth 2 \( -name '*.json.*' -o -name 'CLAUDE.md.*' \) -print -quit)" ]
+    ); then
+        success "  setup-project.sh merge"
+    else
+        error "  setup-project.sh merge failed"
+        INTEGRATION_OK=false
+    fi
+    rm -rf "$PROJ" "$FAKE_HOME"
+
     # Test bootstrap.sh end-to-end against a local bare remote.
     # Requires the agent-mode files to be committed at HEAD with no pending
     # changes — bootstrap syncs from git, not the working tree.

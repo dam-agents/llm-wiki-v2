@@ -148,15 +148,43 @@ link_commands_into() {
     echo "  ✓ commands: $count linked into $dir/ ($label)"
 }
 
+# Never merge through a fixed temp name: the harness image syncs this same
+# file and may swap or delete it mid-merge. mktemp in settings.json's own
+# directory keeps the final rename atomic on one filesystem.
 register_claude_hooks() {
     local settings="$HOME/.claude/settings.json"
     local start_hook="$HOME/.claude/skills/llm-wiki/hooks/session-start.sh"
     local stop_hook="$HOME/.claude/skills/llm-wiki/hooks/session-stop.sh"
+    local tmp rc=0
 
-    if [ -f "$settings" ] && grep -q "skills/llm-wiki/hooks/session-start.sh" "$settings"; then
+    if grep -qs "skills/llm-wiki/hooks/session-start.sh" "$settings"; then
         echo "  ✓ hooks: already registered in $settings"
-    elif [ ! -f "$settings" ]; then
-        cat > "$settings" << SETEOF
+        return 0
+    fi
+
+    if [ -f "$settings" ] && ! command -v jq >/dev/null 2>&1; then
+        echo "  ⚠ jq not found — add the hooks to $settings manually:"
+        echo "    SessionStart → $start_hook"
+        echo "    SessionEnd   → $stop_hook"
+        return 0
+    fi
+
+    mkdir -p "$(dirname "$settings")"
+    if ! tmp="$(mktemp "$(dirname "$settings")/.settings.json.XXXXXX")"; then
+        echo "  ⚠ cannot write to $(dirname "$settings") — hooks not registered" >&2
+        echo "    Re-run: agent-install.sh --force" >&2
+        return 0
+    fi
+    if [ -f "$settings" ]; then
+        jq --arg start "$start_hook" --arg stop "$stop_hook" '
+            .hooks.SessionStart = ((.hooks.SessionStart // []) +
+                [{"matcher": "", "hooks": [{"type": "command", "command": $start}]}]) |
+            .hooks.SessionEnd = ((.hooks.SessionEnd // []) +
+                [{"matcher": "", "hooks": [{"type": "command", "command": $stop}]}])
+        ' "$settings" > "$tmp" || rc=1
+        [ "$rc" -eq 0 ] || echo "  ⚠ could not read $settings as JSON" >&2
+    else
+        cat > "$tmp" << SETEOF
 {
   "hooks": {
     "SessionStart": [
@@ -174,20 +202,21 @@ register_claude_hooks() {
   }
 }
 SETEOF
-        echo "  ✓ hooks: created $settings"
-    elif command -v jq >/dev/null 2>&1; then
-        jq --arg start "$start_hook" --arg stop "$stop_hook" '
-            .hooks.SessionStart = ((.hooks.SessionStart // []) +
-                [{"matcher": "", "hooks": [{"type": "command", "command": $start}]}]) |
-            .hooks.SessionEnd = ((.hooks.SessionEnd // []) +
-                [{"matcher": "", "hooks": [{"type": "command", "command": $stop}]}])
-        ' "$settings" > "$settings.tmp" && mv "$settings.tmp" "$settings"
-        echo "  ✓ hooks: merged into $settings"
-    else
-        echo "  ⚠ jq not found — add the hooks to $settings manually:"
-        echo "    SessionStart → $start_hook"
-        echo "    SessionEnd   → $stop_hook"
     fi
+
+    # Re-check the written file: a concurrent writer may have won the rename.
+    if [ "$rc" -eq 0 ] && mv -f "$tmp" "$settings" \
+        && grep -qs "skills/llm-wiki/hooks/session-start.sh" "$settings"; then
+        echo "  ✓ hooks: merged into $settings"
+        return 0
+    fi
+    rm -f "$tmp"
+
+    # Hooks are the one optional piece of the install; a failure here must not
+    # take the skill/manual/command links down with it.
+    echo "  ⚠ hooks not registered in $settings — the skill and commands still work," >&2
+    echo "    but sessions will not load the wiki context. Re-run: agent-install.sh --force" >&2
+    return 0
 }
 
 # ── 1. Shared skill (agentskills.io layout, read by every harness) ───────────

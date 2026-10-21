@@ -22,6 +22,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `hooks/session-start.sh` itself at session start.
 - `uninstall.sh` removes the links from every harness.
 
+### Fixed
+
+- Install no longer races a harness image that syncs `~/.claude/settings.json`.
+  The hooks were merged through the fixed name `settings.json.tmp`, which the
+  image also used, so the merge died with
+  `mv: cannot stat '.../settings.json.tmp'`. The merge now writes a `mktemp`
+  file in settings.json's own directory (atomic rename on one filesystem),
+  cleans it up on failure, and re-checks the hooks in the written file.
+  `setup-project.sh` had the same fixed-`.tmp` pattern for `CLAUDE.md` and
+  `.claude/settings.local.json` and is fixed the same way. A hooks failure now
+  warns and prints the `--force` re-run instead of aborting the install.
+
 ### Changed
 
 - Skill, command, and workflow docs refer to the skill directory

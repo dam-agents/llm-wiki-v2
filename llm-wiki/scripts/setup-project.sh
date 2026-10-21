@@ -78,7 +78,9 @@ if [ -f "$CLAUDE_MD" ]; then
     else
         # Prepend wiki instructions to existing CLAUDE.md
         echo "   → CLAUDE.md exists, prepending wiki instructions..."
-        TEMP_MD="${CLAUDE_MD}.tmp"
+        # mktemp in CLAUDE.md's directory: the rename stays atomic, and a
+        # fixed .tmp name would collide with any concurrent writer.
+        tmp_md="$(mktemp "${CLAUDE_MD}.XXXXXX")"
         {
             echo "<!-- LLM Wiki instructions added by setup-project.sh -->"
             echo ""
@@ -87,8 +89,8 @@ if [ -f "$CLAUDE_MD" ]; then
             echo "---"
             echo ""
             cat "$CLAUDE_MD"
-        } > "$TEMP_MD"
-        mv "$TEMP_MD" "$CLAUDE_MD"
+        } > "$tmp_md"
+        mv "$tmp_md" "$CLAUDE_MD" || { rm -f "$tmp_md"; exit 1; }
         echo "   ✓ Wiki instructions prepended to CLAUDE.md"
     fi
 else
@@ -106,11 +108,18 @@ if [ "$WITH_HOOKS" = true ]; then
     if [ -f "$SETTINGS_FILE" ]; then
         # Update existing settings with jq
         if command -v jq >/dev/null 2>&1; then
-            jq --arg cmd "$SKILL_DIR/hooks/session-start.sh" \
+            tmp_settings="$(mktemp "$(dirname "$SETTINGS_FILE")/.settings.local.json.XXXXXX")"
+            if jq --arg cmd "$SKILL_DIR/hooks/session-start.sh" \
                '.hooks.SessionStart = [{"matcher": "", "command": $cmd}]' \
-               "$SETTINGS_FILE" > "$SETTINGS_FILE.tmp" && \
-            mv "$SETTINGS_FILE.tmp" "$SETTINGS_FILE" && \
-            echo "   ✓ SessionStart hook configured in $SETTINGS_FILE"
+               "$SETTINGS_FILE" > "$tmp_settings" && \
+               mv "$tmp_settings" "$SETTINGS_FILE" && \
+               grep -q "session-start.sh" "$SETTINGS_FILE"; then
+                echo "   ✓ SessionStart hook configured in $SETTINGS_FILE"
+            else
+                rm -f "$tmp_settings"
+                echo "   ⚠ Could not update $SETTINGS_FILE — add the hook manually:"
+                echo "     \"command\": \"$SKILL_DIR/hooks/session-start.sh\""
+            fi
         else
             echo "   ⚠ jq not found. Install jq or add the hook manually:"
             echo "     See: https://claude.com/claude-code for hook configuration"
