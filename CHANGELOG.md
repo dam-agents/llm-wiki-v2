@@ -22,6 +22,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `hooks/session-start.sh` itself at session start.
 - `uninstall.sh` removes the links from every harness.
 
+### Fixed
+
+- Install no longer races a harness image that syncs `~/.claude/settings.json`.
+  The hooks were merged through the fixed name `settings.json.tmp`, which the
+  image also used, so the merge died with
+  `mv: cannot stat '.../settings.json.tmp'`. Every write to a shared file now
+  goes through a private `mktemp` file in the destination's own directory,
+  published by an atomic rename that keeps the existing file mode and follows
+  a symlink to its target instead of replacing the link. Writing through a
+  dangling settings symlink is preserved, so a managed settings target is no
+  longer lost. `setup-project.sh` had the same fixed-`.tmp` pattern for
+  `CLAUDE.md`, for merged `.claude/settings.local.json`, and an in-place write
+  for a newly created one; all three now use the private-temp publish, and a
+  generation failure cleans the temp up and leaves the original untouched.
+- A hooks failure no longer aborts the install. It warns, prints the
+  `agent-install.sh --force` re-run, and keeps exit 0 so the skill, manual, and
+  command links survive. This is a behaviour change for the reported collision
+  (previously exit 1 via `set -e`); invalid JSON already exited 0 before.
+- The `CLAUDE.md` prepend checks every read, so an unreadable `WIKI.md` no
+  longer publishes a partial file and reports success (errexit is off in the
+  conditional context it used to rely on). A newly created project settings
+  file is re-checked for the hook before success is announced. A failure to
+  read or apply an existing file's mode now refuses publication instead of
+  replacing the file with different permissions, and a cyclic settings symlink
+  is refused with a warning rather than followed forever.
+
 ### Changed
 
 - Skill, command, and workflow docs refer to the skill directory
