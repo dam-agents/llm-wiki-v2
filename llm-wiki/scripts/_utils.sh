@@ -18,13 +18,17 @@ find_wiki_root() {
 }
 # resolve_target — Where a write to $1 must land, following symlinks (dangling
 # ones included). Writing through the link instead of renaming over it keeps a
-# managed settings symlink alive.
+# managed settings symlink alive. A cycle or an over-long chain is refused
+# (non-zero) rather than followed forever.
 resolve_target() {
-    local p="$1" d l
+    local p="$1" d l hops=0
     while [ -L "$p" ]; do
-        d="$(cd "$(dirname "$p")" 2>/dev/null && pwd -P)" || break
-        l="$(readlink "$p")"
+        hops=$((hops + 1))
+        [ "$hops" -le 40 ] || return 1
+        d="$(cd "$(dirname "$p")" 2>/dev/null && pwd -P)" || return 1
+        l="$(readlink "$p")" || return 1
         case "$l" in
+            "") return 1 ;;
             /*) p="$l" ;;
             *)  p="$d/$l" ;;
         esac
@@ -50,13 +54,19 @@ new_temp_beside() {
 }
 
 # publish_temp — Atomically rename $1 over $2, keeping $2's permissions. A new
-# file keeps mktemp's 0600. Removes $1 on failure.
+# file keeps mktemp's 0600. Preserving an existing file's mode is part of the
+# contract: if it cannot be read or applied, refuse to publish and return 1
+# rather than replace the file with different permissions. Removes $1 on
+# failure.
 publish_temp() {
     local tmp="$1" target mode
     target="$(resolve_target "$2")" || { rm -f "$tmp"; return 1; }
-    if [ -f "$target" ] && mode="$(file_mode "$target")" \
-        && case "$mode" in ''|*[!0-7]*) false ;; *) true ;; esac; then
-        chmod "$mode" "$tmp" || true
+    if [ -f "$target" ]; then
+        mode="$(file_mode "$target")" || { rm -f "$tmp"; return 1; }
+        case "$mode" in
+            ''|*[!0-7]*) rm -f "$tmp"; return 1 ;;
+        esac
+        chmod "$mode" "$tmp" || { rm -f "$tmp"; return 1; }
     fi
     mv -f "$tmp" "$target" || { rm -f "$tmp"; return 1; }
 }

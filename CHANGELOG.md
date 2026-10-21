@@ -40,6 +40,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `agent-install.sh --force` re-run, and keeps exit 0 so the skill, manual, and
   command links survive. This is a behaviour change for the reported collision
   (previously exit 1 via `set -e`); invalid JSON already exited 0 before.
+- The `CLAUDE.md` prepend checks every read, so an unreadable `WIKI.md` no
+  longer publishes a partial file and reports success (errexit is off in the
+  conditional context it used to rely on). A newly created project settings
+  file is re-checked for the hook before success is announced. A failure to
+  read or apply an existing file's mode now refuses publication instead of
+  replacing the file with different permissions, and a cyclic settings symlink
+  is refused with a warning rather than followed forever.
 
 ### Changed
 

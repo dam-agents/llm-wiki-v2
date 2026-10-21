@@ -214,6 +214,81 @@ jobs:
           cd "$TMPDIR"
           rm -rf "$PROJ" "$FAKE_HOME"
 
+          echo "=== Testing failure paths (missing template, lost hook, chmod, symlink loop) ==="
+          SKILLCOPY="$(mktemp -d)"
+          cp -R "$GITHUB_WORKSPACE/llm-wiki" "$SKILLCOPY/llm-wiki"
+          cp "$GITHUB_WORKSPACE/AGENT.md" "$SKILLCOPY/AGENT.md"
+          FH="$(mktemp -d)"
+          HOME="$FH" bash "$SKILLCOPY/llm-wiki/scripts/agent-install.sh" --harness claude-code
+
+          # (i) missing WIKI.md must not publish partial content or claim success
+          P1="$(mktemp -d)"
+          cd "$P1"
+          printf '# Keep me\n' > CLAUDE.md
+          mv "$FH/.claude/skills/llm-wiki/WIKI.md" "$P1/WIKI.md.saved"
+          OUT1="$(HOME="$FH" bash "$SKILLCOPY/llm-wiki/scripts/setup-project.sh" 2>&1)" || true
+          test "$(cat CLAUDE.md)" = "# Keep me"
+          echo "$OUT1" | grep -vq "prepended to CLAUDE.md"
+          mv "$P1/WIKI.md.saved" "$SKILLCOPY/llm-wiki/WIKI.md"
+          cd "$TMPDIR"
+
+          # (ii) a hook lost after publication must warn, not claim success
+          P2="$(mktemp -d)"
+          BIN2="$(mktemp -d)"
+          printf '#!/bin/sh\necho "{}"\n' > "$BIN2/jq"
+          chmod +x "$BIN2/jq"
+          cd "$P2"
+          mkdir -p .claude
+          printf '{"model":"x"}\n' > .claude/settings.local.json
+          OUT2="$(PATH="$BIN2:$PATH" HOME="$FH" bash "$SKILLCOPY/llm-wiki/scripts/setup-project.sh" --with-hooks 2>&1)" || true
+          echo "$OUT2" | grep -vq "SessionStart hook configured"
+          echo "$OUT2" | grep -q "add the hook manually"
+          cd "$TMPDIR"
+
+          # (iii) a fresh settings file whose hook is replaced post-rename must warn
+          P3="$(mktemp -d)"
+          printf '#!/bin/sh\n/usr/bin/mv "$@"\nlast=""; for a in "$@"; do last="$a"; done\ncase "$last" in *settings.local.json) echo "{}" > "$last" ;; esac\n' > "$BIN2/mv"
+          chmod +x "$BIN2/mv"
+          cd "$P3"
+          OUT3="$(PATH="$BIN2:$PATH" HOME="$FH" bash "$SKILLCOPY/llm-wiki/scripts/setup-project.sh" --with-hooks 2>&1)" || true
+          echo "$OUT3" | grep -vq "Created .claude/settings.local.json with SessionStart hook"
+          echo "$OUT3" | grep -q "add the hook manually"
+          cd "$TMPDIR"
+          rm -rf "$BIN2"
+
+          # (iv) failing to keep the mode must refuse publication
+          P4="$(mktemp -d)"
+          BIN4="$(mktemp -d)"
+          printf '#!/bin/sh\nexit 1\n' > "$BIN4/chmod"
+          chmod +x "$BIN4/chmod"
+          cd "$P4"
+          mkdir -p .claude
+          printf '{"env":{}}\n' > .claude/settings.local.json
+          chmod 640 .claude/settings.local.json
+          OUT4="$(PATH="$BIN4:$PATH" HOME="$FH" bash "$SKILLCOPY/llm-wiki/scripts/setup-project.sh" --with-hooks 2>&1)" || true
+          test "$(stat -c '%a' .claude/settings.local.json)" = "640"
+          test "$(cat .claude/settings.local.json)" = '{"env":{}}'
+          echo "$OUT4" | grep -q "add the hook manually"
+          cd "$TMPDIR"
+          rm -rf "$BIN4"
+
+          # (v) a cyclic settings symlink must warn and exit 0, not hang (bounded)
+          FH5="$(mktemp -d)"
+          mkdir -p "$FH5/.claude"
+          ln -s settings.json "$FH5/.claude/settings.json"
+          HOME="$FH5" bash "$SKILLCOPY/llm-wiki/scripts/agent-install.sh" --harness claude-code >"$FH5/out" 2>&1 &
+          RC_PID=$!
+          ( sleep 20; kill -9 "$RC_PID" 2>/dev/null ) >/dev/null 2>&1 &
+          KILLER=$!
+          RC5=0
+          wait "$RC_PID" 2>/dev/null || RC5=$?
+          kill "$KILLER" 2>/dev/null || true
+          wait "$KILLER" 2>/dev/null || true
+          test "$RC5" -eq 0
+          grep -q "symlink loop" "$FH5/out"
+          test -L "$FH5/.claude/settings.json"
+          rm -rf "$SKILLCOPY" "$FH" "$FH5" "$P1" "$P2" "$P3" "$P4"
+
           echo "=== Testing bootstrap.sh (local bare remote, isolated HOME) ==="
           BARE="$(mktemp -d)/origin.git"
           git init --bare -b main "$BARE"

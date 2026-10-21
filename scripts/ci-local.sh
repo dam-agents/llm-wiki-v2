@@ -420,6 +420,107 @@ WRAP
     fi
     rm -rf "$PROJ" "$FAKE_HOME"
 
+    # Failure paths: none of these may publish partial content, claim success
+    # for hooks that are not there, replace a file with different permissions,
+    # or hang. Each is a regression the success-path checks above cannot see.
+    echo ""
+    echo "--- Testing failure paths (missing template, lost hook, chmod, symlink loop) ---"
+    FAIL_OK=true
+    # a private copy of the skill so the missing-template probe cannot touch the repo
+    SKILLCOPY="$(mktemp -d)"
+    cp -R "$PROJECT_ROOT/llm-wiki" "$SKILLCOPY/llm-wiki"
+    cp "$PROJECT_ROOT/AGENT.md" "$SKILLCOPY/AGENT.md"
+    FH="$(mktemp -d)"
+    HOME="$FH" bash "$SKILLCOPY/llm-wiki/scripts/agent-install.sh" --harness claude-code >/dev/null 2>&1
+
+    # (i) missing WIKI.md must leave CLAUDE.md alone and not claim success
+    P1="$(mktemp -d)"
+    (
+        cd "$P1" || exit 1
+        printf '# Keep me\n' > CLAUDE.md
+        rm -f "$FH/.claude/skills/llm-wiki/WIKI.md"
+        out="$(HOME="$FH" bash "$SKILLCOPY/llm-wiki/scripts/setup-project.sh" 2>&1)"
+        [ "$(cat CLAUDE.md)" = "# Keep me" ] || exit 1
+        case "$out" in *"prepended to CLAUDE.md"*) exit 1 ;; esac
+        exit 0
+    ) || { echo "  missing WIKI.md published or claimed success" >&2; FAIL_OK=false; }
+    cp "$PROJECT_ROOT/llm-wiki/WIKI.md" "$SKILLCOPY/llm-wiki/WIKI.md"   # restore for the next probes
+
+    # (ii) a hook lost after publication must warn, not claim success
+    P2="$(mktemp -d)"
+    BIN2="$(mktemp -d)"
+    printf '#!/bin/sh\necho "{}"\n' > "$BIN2/jq"
+    chmod +x "$BIN2/jq"
+    (
+        cd "$P2" || exit 1
+        mkdir -p .claude
+        printf '{"model":"x"}\n' > .claude/settings.local.json
+        out="$(PATH="$BIN2:$PATH" HOME="$FH" bash "$SKILLCOPY/llm-wiki/scripts/setup-project.sh" --with-hooks 2>&1)"
+        case "$out" in *"SessionStart hook configured"*) exit 1 ;; esac
+        case "$out" in *"add the hook manually"*) ;; *) exit 1 ;; esac
+        exit 0
+    ) || { echo "  lost hook still reported as configured" >&2; FAIL_OK=false; }
+
+    # (iii) a fresh settings file whose hook is replaced post-rename must warn
+    P3="$(mktemp -d)"
+    # shellcheck disable=SC2016  # single quotes are the point: this writes a script
+    printf '#!/bin/sh\n/usr/bin/mv "$@"\nlast=""; for a in "$@"; do last="$a"; done\ncase "$last" in *settings.local.json) echo "{}" > "$last" ;; esac\n' > "$BIN2/mv"
+    chmod +x "$BIN2/mv"
+    (
+        cd "$P3" || exit 1
+        out="$(PATH="$BIN2:$PATH" HOME="$FH" bash "$SKILLCOPY/llm-wiki/scripts/setup-project.sh" --with-hooks 2>&1)"
+        case "$out" in *"Created .claude/settings.local.json with SessionStart hook"*) exit 1 ;; esac
+        case "$out" in *"add the hook manually"*) ;; *) exit 1 ;; esac
+        exit 0
+    ) || { echo "  fresh settings reported success without the hook" >&2; FAIL_OK=false; }
+    rm -rf "$BIN2"
+
+    # (iv) failing to keep the mode must refuse publication, not replace anyway
+    P4="$(mktemp -d)"
+    BIN4="$(mktemp -d)"
+    printf '#!/bin/sh\nexit 1\n' > "$BIN4/chmod"
+    chmod +x "$BIN4/chmod"
+    (
+        cd "$P4" || exit 1
+        mkdir -p .claude
+        printf '{"env":{}}\n' > .claude/settings.local.json
+        chmod 640 .claude/settings.local.json
+        out="$(PATH="$BIN4:$PATH" HOME="$FH" bash "$SKILLCOPY/llm-wiki/scripts/setup-project.sh" --with-hooks 2>&1)"
+        [ "$(file_mode .claude/settings.local.json)" = "640" ] || exit 1
+        [ "$(cat .claude/settings.local.json)" = '{"env":{}}' ] || exit 1
+        case "$out" in *"add the hook manually"*) ;; *) exit 1 ;; esac
+        exit 0
+    ) || { echo "  chmod failure replaced the file instead of refusing" >&2; FAIL_OK=false; }
+    rm -rf "$BIN4"
+
+    # (v) a cyclic settings symlink must warn and exit 0, not hang. Bounded so
+    # a regression fails the check instead of stalling CI.
+    FH5="$(mktemp -d)"
+    mkdir -p "$FH5/.claude"
+    ln -s settings.json "$FH5/.claude/settings.json"
+    HOME="$FH5" bash "$SKILLCOPY/llm-wiki/scripts/agent-install.sh" --harness claude-code \
+        >"$FH5/out" 2>&1 &
+    RC_PID=$!
+    ( sleep 20; kill -9 "$RC_PID" 2>/dev/null ) >/dev/null 2>&1 &
+    KILLER=$!
+    rc5=0
+    wait "$RC_PID" 2>/dev/null || rc5=$?
+    kill "$KILLER" 2>/dev/null || true
+    wait "$KILLER" 2>/dev/null || true
+    out5="$(cat "$FH5/out")"
+    { [ "$rc5" -eq 0 ] \
+        && case "$out5" in *"symlink loop"*) true ;; *) false ;; esac \
+        && [ -L "$FH5/.claude/settings.json" ]; } \
+        || { echo "  cyclic symlink not handled (rc=$rc5)" >&2; FAIL_OK=false; }
+
+    if [ "$FAIL_OK" = true ]; then
+        success "  failure paths (no partial publish, no false success, mode kept, no hang)"
+    else
+        error "  failure-path handling incomplete"
+        INTEGRATION_OK=false
+    fi
+    rm -rf "$SKILLCOPY" "$FH" "$FH5" "$P1" "$P2" "$P3" "$P4"
+
     # Test bootstrap.sh end-to-end against a local bare remote.
     # Requires the agent-mode files to be committed at HEAD with no pending
     # changes — bootstrap syncs from git, not the working tree.

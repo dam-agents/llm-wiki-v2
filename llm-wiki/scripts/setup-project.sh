@@ -90,20 +90,20 @@ if [ -f "$CLAUDE_MD" ]; then
             tmp_md=""
         else
             trap 'rm -f "$tmp_md"' EXIT
-            # set -e inside the subshell: a mid-generation failure (unreadable
-            # WIKI.md) must not publish a truncated CLAUDE.md.
-            if (
-                set -e
-                {
-                    echo "<!-- LLM Wiki instructions added by setup-project.sh -->"
-                    echo ""
-                    cat "$WIKI_MD"
-                    echo ""
-                    echo "---"
-                    echo ""
-                    cat "$CLAUDE_MD"
-                } > "$tmp_md"
-            ) && publish_temp "$tmp_md" "$CLAUDE_MD"; then
+            # Check every read explicitly: errexit is off inside a conditional
+            # context, so a failed cat would otherwise still publish a partial
+            # CLAUDE.md. Any generation failure means no publish.
+            md_ok=true
+            {
+                echo "<!-- LLM Wiki instructions added by setup-project.sh -->"
+                echo ""
+                cat "$WIKI_MD" || md_ok=false
+                echo ""
+                echo "---"
+                echo ""
+                cat "$CLAUDE_MD" || md_ok=false
+            } > "$tmp_md" || md_ok=false
+            if [ "$md_ok" = true ] && publish_temp "$tmp_md" "$CLAUDE_MD"; then
                 echo "   ✓ Wiki instructions prepended to CLAUDE.md"
             else
                 echo "   ⚠ could not update CLAUDE.md — leaving it unchanged"
@@ -159,7 +159,8 @@ if [ "$WITH_HOOKS" = true ]; then
             tmp_settings=""
         else
             trap 'rm -f "$tmp_settings"' EXIT
-            if cat > "$tmp_settings" << SETEOF && publish_temp "$tmp_settings" "$SETTINGS_FILE"
+            if cat > "$tmp_settings" << SETEOF && publish_temp "$tmp_settings" "$SETTINGS_FILE" \
+                && grep -q "session-start.sh" "$SETTINGS_FILE"
 {
   "hooks": {
     "SessionStart": [

@@ -161,7 +161,11 @@ register_claude_hooks() {
     local stop_hook="$HOME/.claude/skills/llm-wiki/hooks/session-stop.sh"
     local target tmp rc=0
 
-    target="$(resolve_target "$settings")"
+    if ! target="$(resolve_target "$settings")"; then
+        echo "  ⚠ $settings is a symlink loop — hooks not registered" >&2
+        echo "    Re-run: agent-install.sh --force" >&2
+        return 0
+    fi
     if grep -qs "skills/llm-wiki/hooks/session-start.sh" "$target"; then
         echo "  ✓ hooks: already registered in $settings"
         return 0
