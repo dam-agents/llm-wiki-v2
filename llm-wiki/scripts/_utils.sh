@@ -16,3 +16,44 @@ find_wiki_root() {
         echo ""
     fi
 }
+# resolve_target — Where a write to $1 must land, following symlinks (dangling
+# ones included). Writing through the link instead of renaming over it keeps a
+# managed settings symlink alive.
+resolve_target() {
+    local p="$1" d l
+    while [ -L "$p" ]; do
+        d="$(cd "$(dirname "$p")" 2>/dev/null && pwd -P)" || break
+        l="$(readlink "$p")"
+        case "$l" in
+            /*) p="$l" ;;
+            *)  p="$d/$l" ;;
+        esac
+    done
+    echo "$p"
+}
+
+# file_mode — Permission bits of $1 in octal (BSD and GNU stat).
+file_mode() {
+    stat -f '%Lp' "$1" 2>/dev/null || stat -c '%a' "$1" 2>/dev/null
+}
+
+# new_temp_beside — mktemp a file in the directory a write to $1 will land in,
+# so the final rename stays on one filesystem. A fixed temp name would collide
+# with a harness image that syncs the same file under its own fixed name.
+new_temp_beside() {
+    local target
+    target="$(resolve_target "$1")" || return 1
+    mkdir -p "$(dirname "$target")" || return 1
+    mktemp "$(dirname "$target")/.$(basename "$target").XXXXXX"
+}
+
+# publish_temp — Atomically rename $1 over $2, keeping $2's permissions. A new
+# file keeps mktemp's 0600. Removes $1 on failure.
+publish_temp() {
+    local tmp="$1" target mode
+    target="$(resolve_target "$2")" || { rm -f "$tmp"; return 1; }
+    if [ -f "$target" ] && mode="$(file_mode "$target")" && [ -n "$mode" ]; then
+        chmod "$mode" "$tmp" || true
+    fi
+    mv -f "$tmp" "$target" || { rm -f "$tmp"; return 1; }
+}

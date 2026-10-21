@@ -49,6 +49,9 @@ done
 log() { if [ "$VERBOSE" = true ]; then echo "  [verbose] $*"; fi }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./_utils.sh
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/_utils.sh"
 SKILL_SRC="$(cd "$SCRIPT_DIR/.." && pwd)"    # llm-wiki/
 REPO_ROOT="$(cd "$SKILL_SRC/.." && pwd)"     # repo root (the agent definition)
 MANUAL_SRC="$REPO_ROOT/AGENT.md"
@@ -149,42 +152,43 @@ link_commands_into() {
 }
 
 # Never merge through a fixed temp name: the harness image syncs this same
-# file and may swap or delete it mid-merge. mktemp in settings.json's own
-# directory keeps the final rename atomic on one filesystem.
+# file and may swap or delete it mid-merge. new_temp_beside puts the temp in
+# the settings file's own directory (following symlinks), so the rename is
+# atomic, keeps the existing mode, and leaves a managed symlink in place.
 register_claude_hooks() {
     local settings="$HOME/.claude/settings.json"
     local start_hook="$HOME/.claude/skills/llm-wiki/hooks/session-start.sh"
     local stop_hook="$HOME/.claude/skills/llm-wiki/hooks/session-stop.sh"
-    local tmp rc=0
+    local target tmp rc=0
 
-    if grep -qs "skills/llm-wiki/hooks/session-start.sh" "$settings"; then
+    target="$(resolve_target "$settings")"
+    if grep -qs "skills/llm-wiki/hooks/session-start.sh" "$target"; then
         echo "  ✓ hooks: already registered in $settings"
         return 0
     fi
 
-    if [ -f "$settings" ] && ! command -v jq >/dev/null 2>&1; then
+    if [ -f "$target" ] && ! command -v jq >/dev/null 2>&1; then
         echo "  ⚠ jq not found — add the hooks to $settings manually:"
         echo "    SessionStart → $start_hook"
         echo "    SessionEnd   → $stop_hook"
         return 0
     fi
 
-    mkdir -p "$(dirname "$settings")"
-    if ! tmp="$(mktemp "$(dirname "$settings")/.settings.json.XXXXXX")"; then
-        echo "  ⚠ cannot write to $(dirname "$settings") — hooks not registered" >&2
+    if ! tmp="$(new_temp_beside "$settings")"; then
+        echo "  ⚠ cannot write to $(dirname "$target") — hooks not registered" >&2
         echo "    Re-run: agent-install.sh --force" >&2
         return 0
     fi
-    if [ -f "$settings" ]; then
+    if [ -f "$target" ]; then
         jq --arg start "$start_hook" --arg stop "$stop_hook" '
             .hooks.SessionStart = ((.hooks.SessionStart // []) +
                 [{"matcher": "", "hooks": [{"type": "command", "command": $start}]}]) |
             .hooks.SessionEnd = ((.hooks.SessionEnd // []) +
                 [{"matcher": "", "hooks": [{"type": "command", "command": $stop}]}])
-        ' "$settings" > "$tmp" || rc=1
-        [ "$rc" -eq 0 ] || echo "  ⚠ could not read $settings as JSON" >&2
+        ' "$target" > "$tmp" || rc=1
+        [ "$rc" -eq 0 ] || echo "  ⚠ could not read $target as JSON" >&2
     else
-        cat > "$tmp" << SETEOF
+        cat > "$tmp" << SETEOF || rc=1
 {
   "hooks": {
     "SessionStart": [
@@ -203,14 +207,14 @@ register_claude_hooks() {
 }
 SETEOF
     fi
-
-    # Re-check the written file: a concurrent writer may have won the rename.
-    if [ "$rc" -eq 0 ] && mv -f "$tmp" "$settings" \
-        && grep -qs "skills/llm-wiki/hooks/session-start.sh" "$settings"; then
+    if [ "$rc" -ne 0 ]; then
+        rm -f "$tmp"
+    elif publish_temp "$tmp" "$settings" \
+        && grep -qs "skills/llm-wiki/hooks/session-start.sh" "$target"; then
+        # Re-check the published file: a concurrent writer may have won the rename.
         echo "  ✓ hooks: merged into $settings"
         return 0
     fi
-    rm -f "$tmp"
 
     # Hooks are the one optional piece of the install; a failure here must not
     # take the skill/manual/command links down with it.

@@ -27,12 +27,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Install no longer races a harness image that syncs `~/.claude/settings.json`.
   The hooks were merged through the fixed name `settings.json.tmp`, which the
   image also used, so the merge died with
-  `mv: cannot stat '.../settings.json.tmp'`. The merge now writes a `mktemp`
-  file in settings.json's own directory (atomic rename on one filesystem),
-  cleans it up on failure, and re-checks the hooks in the written file.
-  `setup-project.sh` had the same fixed-`.tmp` pattern for `CLAUDE.md` and
-  `.claude/settings.local.json` and is fixed the same way. A hooks failure now
-  warns and prints the `--force` re-run instead of aborting the install.
+  `mv: cannot stat '.../settings.json.tmp'`. Every write to a shared file now
+  goes through a private `mktemp` file in the destination's own directory,
+  published by an atomic rename that keeps the existing file mode and follows
+  a symlink to its target instead of replacing the link. Writing through a
+  dangling settings symlink is preserved, so a managed settings target is no
+  longer lost. `setup-project.sh` had the same fixed-`.tmp` pattern for
+  `CLAUDE.md`, for merged `.claude/settings.local.json`, and an in-place write
+  for a newly created one; all three now use the private-temp publish, and a
+  generation failure cleans the temp up and leaves the original untouched.
+- A hooks failure no longer aborts the install. It warns, prints the
+  `agent-install.sh --force` re-run, and keeps exit 0 so the skill, manual, and
+  command links survive. This is a behaviour change for the reported collision
+  (previously exit 1 via `set -e`); invalid JSON already exited 0 before.
 
 ### Changed
 

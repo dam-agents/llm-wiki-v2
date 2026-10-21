@@ -293,69 +293,125 @@ EOF
         rm -rf "$FAKE_HOME"
     done
 
-    # A concurrent writer must not break the hooks merge. The platform's
-    # Claude Code image syncs ~/.claude/settings.json through the same fixed
-    # settings.json.tmp name, which is what made agent-install.sh fail with
-    # "mv: cannot stat .../settings.json.tmp".
+    # Three deterministic hooks-merge checks. A wrapper jq stands in for the
+    # harness image that syncs settings.json, so each assertion holds every run
+    # instead of depending on scheduling.
     echo ""
-    echo "--- Testing hooks merge against a concurrent settings.json writer ---"
+    echo "--- Testing hooks merge (shared temp name, concurrent writer, warning path) ---"
+    REAL_JQ="$(command -v jq)"
     MERGE_OK=true
-    for _ in 1 2 3; do
-        FAKE_HOME="$(mktemp -d)"
-        mkdir -p "$FAKE_HOME/.claude"
-        printf '{"model":"sonnet"}\n' > "$FAKE_HOME/.claude/settings.json"
-        WRITER_STOP="$FAKE_HOME/stop-writer"
-        # What dam's Claude Code image does: sync the file through the shared
-        # settings.json.tmp name, i.e. steal the installer's temp file mid-merge.
-        (
-            while [ ! -f "$WRITER_STOP" ]; do
-                mv "$FAKE_HOME/.claude/settings.json.tmp" "$FAKE_HOME/.claude/settings.json" 2>/dev/null \
-                    || sleep 0.01
-            done
-        ) >/dev/null 2>&1 &
-        WRITER_PID=$!
-        HOME="$FAKE_HOME" bash "$PROJECT_ROOT/llm-wiki/scripts/agent-install.sh" >/dev/null 2>&1 || MERGE_OK=false
-        touch "$WRITER_STOP"
-        wait "$WRITER_PID" 2>/dev/null || true
-        rm -rf "$FAKE_HOME"
-    done
-    # Once no one else is writing, the hooks must land and leave no temp litter.
-    FAKE_HOME="$(mktemp -d)"
-    mkdir -p "$FAKE_HOME/.claude"
-    printf '{"model":"sonnet"}\n' > "$FAKE_HOME/.claude/settings.json"
-    if [ "$MERGE_OK" = true ] \
-        && HOME="$FAKE_HOME" bash "$PROJECT_ROOT/llm-wiki/scripts/agent-install.sh" >/dev/null 2>&1 \
-        && jq -e '[.hooks.SessionStart[]?.hooks[]?.command // empty] | any(test("session-start.sh"))' \
-            "$FAKE_HOME/.claude/settings.json" >/dev/null 2>&1 \
-        && [ -z "$(find "$FAKE_HOME/.claude" -maxdepth 1 -name '.settings.json.*' -print -quit)" ]; then
-        success "  hooks merge (survives a concurrent settings.json writer)"
+
+    # (a) The installer must never allocate the shared settings.json.tmp name:
+    #     that is the name dam's image also uses, and the original collision.
+    BIN="$(mktemp -d)"
+    cat > "$BIN/jq" <<WRAP
+#!/bin/sh
+if [ -e "\$SETTINGS_DIR/settings.json.tmp" ]; then
+    : > "\$SETTINGS_DIR/.shared-name-used"
+fi
+exec "$REAL_JQ" "\$@"
+WRAP
+    chmod +x "$BIN/jq"
+    FH="$(mktemp -d)"; mkdir -p "$FH/.claude"
+    printf '{"model":"sonnet"}\n' > "$FH/.claude/settings.json"
+    SETTINGS_DIR="$FH/.claude" PATH="$BIN:$PATH" HOME="$FH" \
+        bash "$PROJECT_ROOT/llm-wiki/scripts/agent-install.sh" >/dev/null 2>&1 || MERGE_OK=false
+    if [ -e "$FH/.claude/.shared-name-used" ]; then
+        echo "  installer allocated the shared settings.json.tmp name" >&2
+        MERGE_OK=false
+    fi
+    jq -e '[.hooks.SessionStart[]?.hooks[]?.command // empty] | any(test("session-start.sh"))' \
+        "$FH/.claude/settings.json" >/dev/null 2>&1 || MERGE_OK=false
+    rm -rf "$FH" "$BIN"
+
+    # (b) A concurrent writer publishes replacement settings mid-merge. The
+    #     merge must land on the new content, keeping its unrelated key.
+    BIN="$(mktemp -d)"
+    cat > "$BIN/jq" <<WRAP
+#!/bin/sh
+printf '{"model":"opus","synced":true}\n' > "\$SETTINGS_DIR/.sync.\$\$"
+mv -f "\$SETTINGS_DIR/.sync.\$\$" "\$SETTINGS_DIR/settings.json"
+exec "$REAL_JQ" "\$@"
+WRAP
+    chmod +x "$BIN/jq"
+    FH="$(mktemp -d)"; mkdir -p "$FH/.claude"
+    printf '{"model":"sonnet"}\n' > "$FH/.claude/settings.json"
+    SETTINGS_DIR="$FH/.claude" PATH="$BIN:$PATH" HOME="$FH" \
+        bash "$PROJECT_ROOT/llm-wiki/scripts/agent-install.sh" >/dev/null 2>&1 || MERGE_OK=false
+    if ! jq -e '.synced == true and ([.hooks.SessionStart[]?.hooks[]?.command // empty] | any(test("session-start.sh")))' \
+        "$FH/.claude/settings.json" >/dev/null 2>&1; then
+        echo "  concurrent replacement lost (merged content: $(cat "$FH/.claude/settings.json"))" >&2
+        MERGE_OK=false
+    fi
+    rm -rf "$FH" "$BIN"
+
+    # (c) Post-publish re-check: hooks missing from what we published must warn,
+    #     exit 0, and leave no temp file behind.
+    BIN="$(mktemp -d)"
+    printf '#!/bin/sh\necho "{}"\n' > "$BIN/jq"
+    chmod +x "$BIN/jq"
+    FH="$(mktemp -d)"; mkdir -p "$FH/.claude"
+    printf '{"model":"sonnet"}\n' > "$FH/.claude/settings.json"
+    MERGE_OUT="$(PATH="$BIN:$PATH" HOME="$FH" \
+        bash "$PROJECT_ROOT/llm-wiki/scripts/agent-install.sh" 2>&1)"
+    MERGE_RC=$?
+    if [ "$MERGE_RC" -ne 0 ]; then
+        echo "  warning path exited $MERGE_RC, want 0" >&2
+        MERGE_OK=false
+    fi
+    case "$MERGE_OUT" in
+        *"agent-install.sh --force"*) ;;
+        *) echo "  no retry warning printed" >&2; MERGE_OK=false ;;
+    esac
+    [ -z "$(find "$FH/.claude" -maxdepth 1 -name '.settings.json.*' -print -quit)" ] || {
+        echo "  temp file left after failed merge" >&2; MERGE_OK=false; }
+    rm -rf "$FH" "$BIN"
+
+    if [ "$MERGE_OK" = true ]; then
+        success "  hooks merge (no shared temp name, survives concurrent replacement, warns on failure)"
     else
-        error "  hooks merge under a concurrent writer failed"
+        error "  hooks merge checks failed"
         INTEGRATION_OK=false
     fi
-    rm -rf "$FAKE_HOME"
 
-    # setup-project.sh writes CLAUDE.md and settings.local.json the same way
+    # setup-project.sh uses the same private-temp publish for CLAUDE.md, the
+    # merged settings, and newly created settings.
     echo ""
-    echo "--- Testing setup-project.sh merge (no temp files left behind) ---"
+    echo "--- Testing setup-project.sh writes (modes kept, no temp litter) ---"
     PROJ="$(mktemp -d)"
     FAKE_HOME="$(mktemp -d)"
     HOME="$FAKE_HOME" bash "$PROJECT_ROOT/llm-wiki/scripts/agent-install.sh" --harness claude-code >/dev/null 2>&1
-    if (
-        cd "$PROJ"
+    SETUP_OK=true
+    (
+        cd "$PROJ" || exit 1
         mkdir -p .claude
         printf '# Project\n' > CLAUDE.md
-        printf '{"env":{}}\n' > .claude/settings.local.json
-        HOME="$FAKE_HOME" bash "$PROJECT_ROOT/llm-wiki/scripts/setup-project.sh" --with-hooks >/dev/null 2>&1 \
-            && grep -q "LLM Wiki" CLAUDE.md \
-            && grep -q "# Project" CLAUDE.md \
-            && jq -e '[.hooks.SessionStart[]?] | any(.command | test("session-start.sh"))' \
-                .claude/settings.local.json >/dev/null 2>&1 \
-            && [ -z "$(find . -maxdepth 2 \( -name '*.json.*' -o -name 'CLAUDE.md.*' \) -print -quit)" ]
-    ); then
-        success "  setup-project.sh merge"
+        chmod 644 CLAUDE.md
+        printf '{"env":{"k":1}}\n' > .claude/settings.local.json
+        chmod 640 .claude/settings.local.json
+        HOME="$FAKE_HOME" bash "$PROJECT_ROOT/llm-wiki/scripts/setup-project.sh" --with-hooks >/dev/null 2>&1 || exit 1
+        grep -q "LLM Wiki" CLAUDE.md || exit 1
+        grep -q "# Project" CLAUDE.md || exit 1
+        # Existing permissions survive the rename
+        [ "$(stat -f '%Lp' CLAUDE.md 2>/dev/null || stat -c '%a' CLAUDE.md)" = "644" ] || exit 1
+        [ "$(stat -f '%Lp' .claude/settings.local.json 2>/dev/null || stat -c '%a' .claude/settings.local.json)" = "640" ] || exit 1
+        # Unrelated settings keys survive, hook lands
+        jq -e '.env.k == 1' .claude/settings.local.json >/dev/null 2>&1 || exit 1
+        jq -e '[.hooks.SessionStart[]?] | any(.command | test("session-start.sh"))' \
+            .claude/settings.local.json >/dev/null 2>&1 || exit 1
+        [ -z "$(find . -maxdepth 2 \( -name '.*.json.*' -o -name '.*CLAUDE.md.*' \) -print -quit)" ] || exit 1
+        # A brand-new settings file is published 0600, not written in place
+        rm -rf .claude
+        HOME="$FAKE_HOME" bash "$PROJECT_ROOT/llm-wiki/scripts/setup-project.sh" --with-hooks >/dev/null 2>&1 || exit 1
+        [ "$(stat -f '%Lp' .claude/settings.local.json 2>/dev/null || stat -c '%a' .claude/settings.local.json)" = "600" ] || exit 1
+        jq -e '[.hooks.SessionStart[]?] | any(.command | test("session-start.sh"))' \
+            .claude/settings.local.json >/dev/null 2>&1 || exit 1
+        exit 0
+    ) || SETUP_OK=false
+    if [ "$SETUP_OK" = true ]; then
+        success "  setup-project.sh writes (modes kept, unrelated keys kept, no temp litter)"
     else
-        error "  setup-project.sh merge failed"
+        error "  setup-project.sh writes failed"
         INTEGRATION_OK=false
     fi
     rm -rf "$PROJ" "$FAKE_HOME"

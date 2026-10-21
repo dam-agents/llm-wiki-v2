@@ -142,47 +142,75 @@ jobs:
             rm -rf "$FAKE_HOME"
           done
 
-          echo "=== Testing hooks merge against a concurrent settings.json writer ==="
-          for _ in 1 2 3; do
-            FAKE_HOME="$(mktemp -d)"
-            mkdir -p "$FAKE_HOME/.claude"
-            printf '{"model":"sonnet"}\n' > "$FAKE_HOME/.claude/settings.json"
-            WRITER_STOP="$FAKE_HOME/stop-writer"
-            # dam's Claude Code image syncs through the shared
-            # settings.json.tmp name, stealing the installer's temp file.
-            (
-              while [ ! -f "$WRITER_STOP" ]; do
-                mv "$FAKE_HOME/.claude/settings.json.tmp" "$FAKE_HOME/.claude/settings.json" 2>/dev/null || sleep 0.01
-              done
-            ) >/dev/null 2>&1 &
-            WRITER_PID=$!
-            HOME="$FAKE_HOME" bash "$GITHUB_WORKSPACE/llm-wiki/scripts/agent-install.sh"
-            touch "$WRITER_STOP"
-            wait "$WRITER_PID" || true
-            rm -rf "$FAKE_HOME"
-          done
-          # Once no one else is writing, the hooks must land, no temp litter left
-          FAKE_HOME="$(mktemp -d)"
-          mkdir -p "$FAKE_HOME/.claude"
-          printf '{"model":"sonnet"}\n' > "$FAKE_HOME/.claude/settings.json"
-          HOME="$FAKE_HOME" bash "$GITHUB_WORKSPACE/llm-wiki/scripts/agent-install.sh"
-          jq -e '[.hooks.SessionStart[]?.hooks[]?.command // empty] | any(test("session-start.sh"))' \
-            "$FAKE_HOME/.claude/settings.json"
-          test -z "$(find "$FAKE_HOME/.claude" -maxdepth 1 -name '.settings.json.*' -print -quit)"
+          echo "=== Testing hooks merge (shared temp name, concurrent writer, warning path) ==="
+          REAL_JQ="$(command -v jq)"
 
-          echo "=== Testing setup-project.sh merge (no temp files left behind) ==="
+          # (a) never allocate the shared settings.json.tmp name
+          BIN="$(mktemp -d)"
+          printf '%s\n' '#!/bin/sh' \
+            'if [ -e "$SETTINGS_DIR/settings.json.tmp" ]; then' \
+            '  : > "$SETTINGS_DIR/.shared-name-used"' \
+            'fi' \
+            "exec \"$REAL_JQ\" \"\$@\"" > "$BIN/jq"
+          chmod +x "$BIN/jq"
+          FH="$(mktemp -d)"; mkdir -p "$FH/.claude"
+          printf '{"model":"sonnet"}\n' > "$FH/.claude/settings.json"
+          SETTINGS_DIR="$FH/.claude" PATH="$BIN:$PATH" HOME="$FH" \
+              bash "$GITHUB_WORKSPACE/llm-wiki/scripts/agent-install.sh"
+          test ! -e "$FH/.claude/.shared-name-used"
+          jq -e '[.hooks.SessionStart[]?.hooks[]?.command // empty] | any(test("session-start.sh"))' \
+              "$FH/.claude/settings.json"
+          rm -rf "$FH" "$BIN"
+
+          # (b) a concurrent writer publishes replacement settings mid-merge
+          BIN="$(mktemp -d)"
+          printf '%s\n' '#!/bin/sh' \
+            'printf '"'"'{"model":"opus","synced":true}\n'"'"' > "$SETTINGS_DIR/.sync.$$"' \
+            'mv -f "$SETTINGS_DIR/.sync.$$" "$SETTINGS_DIR/settings.json"' \
+            "exec \"$REAL_JQ\" \"\$@\"" > "$BIN/jq"
+          chmod +x "$BIN/jq"
+          FH="$(mktemp -d)"; mkdir -p "$FH/.claude"
+          printf '{"model":"sonnet"}\n' > "$FH/.claude/settings.json"
+          SETTINGS_DIR="$FH/.claude" PATH="$BIN:$PATH" HOME="$FH" \
+              bash "$GITHUB_WORKSPACE/llm-wiki/scripts/agent-install.sh"
+          jq -e '.synced == true and ([.hooks.SessionStart[]?.hooks[]?.command // empty] | any(test("session-start.sh")))' \
+              "$FH/.claude/settings.json"
+          rm -rf "$FH" "$BIN"
+
+          # (c) post-publish re-check: missing hooks warn, exit 0, no temp litter
+          BIN="$(mktemp -d)"
+          printf '#!/bin/sh\necho "{}"\n' > "$BIN/jq"
+          chmod +x "$BIN/jq"
+          FH="$(mktemp -d)"; mkdir -p "$FH/.claude"
+          printf '{"model":"sonnet"}\n' > "$FH/.claude/settings.json"
+          MERGE_OUT="$(PATH="$BIN:$PATH" HOME="$FH" \
+              bash "$GITHUB_WORKSPACE/llm-wiki/scripts/agent-install.sh" 2>&1)"
+          echo "$MERGE_OUT" | grep -q "agent-install.sh --force"
+          test -z "$(find "$FH/.claude" -maxdepth 1 -name '.settings.json.*' -print -quit)"
+          rm -rf "$FH" "$BIN"
+
+          echo "=== Testing setup-project.sh writes (modes kept, no temp litter) ==="
           PROJ="$(mktemp -d)"
           FAKE_HOME="$(mktemp -d)"
           HOME="$FAKE_HOME" bash "$GITHUB_WORKSPACE/llm-wiki/scripts/agent-install.sh" --harness claude-code
           cd "$PROJ"
           mkdir -p .claude
           printf '# Project\n' > CLAUDE.md
-          printf '{"env":{}}\n' > .claude/settings.local.json
+          chmod 644 CLAUDE.md
+          printf '{"env":{"k":1}}\n' > .claude/settings.local.json
+          chmod 640 .claude/settings.local.json
           HOME="$FAKE_HOME" bash "$GITHUB_WORKSPACE/llm-wiki/scripts/setup-project.sh" --with-hooks
           grep -q "LLM Wiki" CLAUDE.md
           grep -q "# Project" CLAUDE.md
+          test "$(stat -c '%a' CLAUDE.md)" = "644"
+          test "$(stat -c '%a' .claude/settings.local.json)" = "640"
+          jq -e '.env.k == 1' .claude/settings.local.json
           jq -e '[.hooks.SessionStart[]?] | any(.command | test("session-start.sh"))' .claude/settings.local.json
-          test -z "$(find . -maxdepth 2 \( -name '*.json.*' -o -name 'CLAUDE.md.*' \) -print -quit)"
+          test -z "$(find . -maxdepth 2 \( -name '.*.json.*' -o -name '.*CLAUDE.md.*' \) -print -quit)"
+          rm -rf .claude
+          HOME="$FAKE_HOME" bash "$GITHUB_WORKSPACE/llm-wiki/scripts/setup-project.sh" --with-hooks
+          test "$(stat -c '%a' .claude/settings.local.json)" = "600"
+          jq -e '[.hooks.SessionStart[]?] | any(.command | test("session-start.sh"))' .claude/settings.local.json
           cd "$TMPDIR"
           rm -rf "$PROJ" "$FAKE_HOME"
 
